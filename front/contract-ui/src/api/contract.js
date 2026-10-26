@@ -28,3 +28,11 @@ export const uploadDocumentApi = (contractId, file) => {
 
 export const deleteDocumentApi = (contractId, documentId) =>
   client.delete(`/contracts/${contractId}/documents/${documentId}`);
+
+export const downloadDocumentApi = (contractId, documentId) =>
+  client.get(`/contracts/${contractId}/documents/${documentId}/download`, {
+    responseType: "blob",
+  });
+
+export const analyzeDocumentApi = (contractId, documentId) =>
+  client.post(`/contracts/${contractId}/documents/${documentId}/analysis`);
