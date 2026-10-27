@@ -18,9 +18,9 @@ npm run dev
 - 카카오·네이버 OAuth 로그인 및 첫 로그인 회원가입
 - 계약 목록·등록·수정·삭제·금액 확인
 - 계약서 업로드·다운로드·삭제
-- 계약 상세의 AI 분석 요청
+- 계약서 업로드 직후 자동 AI 분석 및 계약 상세 필드 구조화
 
-AI 분석 버튼은 백엔드의 다음 API를 호출합니다.
+계약서 등록 화면에서 파일 업로드가 완료되면 프론트가 백엔드의 다음 API를 자동 호출합니다.
 
 ```text
 POST /api/v1/contracts/{contractId}/documents/{documentId}/analysis

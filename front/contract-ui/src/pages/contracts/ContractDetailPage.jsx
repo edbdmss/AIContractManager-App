@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  analyzeDocumentApi,
   deleteContractApi,
   deleteDocumentApi,
   downloadDocumentApi,
@@ -22,7 +21,6 @@ export default function ContractDetailPage() {
   const [contract, setContract] = useState(null);
   const [form, setForm] = useState(null);
   const [documents, setDocuments] = useState([]);
-  const [analysis, setAnalysis] = useState(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -77,10 +75,6 @@ export default function ContractDetailPage() {
     try { await deleteDocumentApi(id, documentId); setMessage("문서를 삭제했습니다."); setReloadVersion((version) => version + 1); }
     catch (requestError) { setError(requestError.response?.data?.message || "문서 삭제에 실패했습니다."); }
   };
-  const analyze = async (documentId) => {
-    try { setMessage("AI 분석을 요청했습니다."); const { data } = await analyzeDocumentApi(id, documentId); setAnalysis(data); setMessage("AI 분석이 완료되었습니다."); }
-    catch (requestError) { setError(requestError.response?.data?.message || "AI 분석 서비스에 연결하지 못했습니다."); }
-  };
 
   if (loading) return <p>계약 정보를 불러오는 중...</p>;
   if (!contract || !form) return <p style={styles.error}>{error || "계약을 찾을 수 없습니다."}</p>;
@@ -101,8 +95,7 @@ export default function ContractDetailPage() {
         {error ? <p style={styles.error}>{error}</p> : null}{message ? <p style={styles.success}>{message}</p> : null}
         <button type="button" style={styles.primaryButton} onClick={save} disabled={saving}>{saving ? "저장 중..." : "저장"}</button>
       </section>
-      <section style={styles.card}><h3 style={{ marginTop: 0 }}>첨부 문서</h3><input type="file" accept=".pdf,.hwp,.hwpx,.docx,.jpg,.jpeg,.png" onChange={upload} />{documents.length === 0 ? <p style={styles.muted}>첨부된 문서가 없습니다.</p> : documents.map((document) => <div key={document.id} style={styles.documentRow}><span>{document.originalFilename} · {Math.ceil(document.fileSize / 1024)} KB</span><div><button type="button" style={styles.smallButton} onClick={() => analyze(document.id)}>AI 분석</button><button type="button" style={styles.smallButton} onClick={() => download(document)}>다운로드</button><button type="button" style={styles.dangerButton} onClick={() => removeDocument(document.id)}>삭제</button></div></div>)}</section>
-      {analysis ? <section style={styles.card}><h3 style={{ marginTop: 0 }}>AI 분석 결과</h3><p style={styles.muted}>상태: {analysis.status}</p><pre style={styles.result}>{JSON.stringify(analysis.result, null, 2)}</pre></section> : null}
+      <section style={styles.card}><h3 style={{ marginTop: 0 }}>첨부 문서</h3><input type="file" accept=".pdf,.hwp,.hwpx,.docx,.jpg,.jpeg,.png" onChange={upload} />{documents.length === 0 ? <p style={styles.muted}>첨부된 문서가 없습니다.</p> : documents.map((document) => <div key={document.id} style={styles.documentRow}><span>{document.originalFilename} · {Math.ceil(document.fileSize / 1024)} KB</span><div><button type="button" style={styles.smallButton} onClick={() => download(document)}>다운로드</button><button type="button" style={styles.dangerButton} onClick={() => removeDocument(document.id)}>삭제</button></div></div>)}</section>
     </div>
   );
 }
@@ -124,7 +117,6 @@ const styles = {
   smallButton: { margin: "0 0 0 6px", padding: "7px 9px", border: "1px solid #087e7d", borderRadius: 7, background: "#fff", color: "#087e7d", cursor: "pointer" },
   dangerButton: { marginLeft: 6, padding: "7px 9px", border: "1px solid #d92d20", borderRadius: 7, background: "#fff", color: "#d92d20", cursor: "pointer" },
   documentRow: { display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", padding: "12px 0", borderBottom: "1px solid #edf0f4" },
-  result: { overflowX: "auto", padding: 14, borderRadius: 8, background: "#f3f6f8", fontSize: 12 },
   error: { color: "#d92d20" },
   success: { color: "#087e7d" },
 };
