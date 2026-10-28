@@ -46,7 +46,18 @@ export default function ContractDetailPage() {
   const onChange = (event) => setForm((previous) => ({ ...previous, [event.target.name]: event.target.value }));
   const save = async () => {
     if (!form.title.trim() || !form.category.trim()) return setError("계약 제목과 카테고리는 필수입니다.");
-    try { setSaving(true); setError(""); const { data } = await updateContractApi(id, toPayload(form)); setContract(data); setForm(toForm(data)); setMessage("계약 정보를 저장했습니다."); }
+    try {
+      setSaving(true);
+      setError("");
+      setMessage("");
+      const response = await updateContractApi(id, toPayload(form));
+      // 일부 환경에서는 PUT 응답 본문이 비어 있어도 DB 반영은 완료될 수 있습니다.
+      // 응답이 없으면 저장 직후 GET으로 최신 계약을 확인합니다.
+      const savedContract = response.data || (await getContractApi(id)).data;
+      setContract(savedContract);
+      setForm(toForm(savedContract));
+      setMessage("계약 정보를 저장했습니다.");
+    }
     catch (requestError) { setError(requestError.response?.data?.message || "계약 저장에 실패했습니다."); }
     finally { setSaving(false); }
   };
