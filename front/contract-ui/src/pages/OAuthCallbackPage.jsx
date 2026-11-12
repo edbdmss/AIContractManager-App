@@ -23,11 +23,12 @@ export default function OAuthCallbackPage() {
 
     completeSocialLogin({ provider, code, state })
       .then(({ data }) => {
-        if (!data?.accessToken) {
+        if (!data?.accessToken || !data?.refreshToken) {
           throw new Error("로그인 토큰을 받지 못했습니다.");
         }
 
         localStorage.setItem("accessToken", data.accessToken);
+        localStorage.setItem("refreshToken", data.refreshToken);
         localStorage.setItem("userEmail", data.email || "");
         localStorage.setItem("userName", data.name || "");
         navigate("/home", { replace: true });

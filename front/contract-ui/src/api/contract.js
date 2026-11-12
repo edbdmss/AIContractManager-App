@@ -36,3 +36,14 @@ export const downloadDocumentApi = (contractId, documentId) =>
 
 export const analyzeDocumentApi = (contractId, documentId) =>
   client.post(`/contracts/${contractId}/documents/${documentId}/analysis`);
+
+export const listSubscriptionSuggestionsApi = () => client.get("/subscription-suggestions");
+
+export const acceptSubscriptionSuggestionApi = (suggestionId) =>
+  client.post(`/subscription-suggestions/${suggestionId}/accept`);
+
+export const rejectSubscriptionSuggestionApi = (suggestionId) =>
+  client.post(`/subscription-suggestions/${suggestionId}/reject`);
+
+export const completeSubscriptionSuggestionApi = (suggestionId, contractId) =>
+  client.post(`/subscription-suggestions/${suggestionId}/complete`, { contractId });

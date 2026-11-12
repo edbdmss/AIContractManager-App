@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { logout } from "../api/auth";
 
 const SIDEBAR_WIDTH = 240;
 
@@ -7,9 +8,9 @@ export default function AppLayout() {
   const location = useLocation();
 
   const onLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("userEmail");
-    navigate("/login");
+    const logoutRequest = logout();
+    navigate("/login", { replace: true });
+    return logoutRequest;
   };
 
   const isContractsActive = () => {

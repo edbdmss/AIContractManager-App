@@ -23,7 +23,7 @@ npm run dev
 계약서 등록 화면에서 파일 업로드가 완료되면 프론트가 백엔드의 다음 API를 자동 호출합니다.
 
 ```text
-POST /api/v1/contracts/{contractId}/documents/{documentId}/analysis
+POST /api/aicontract/contracts/{contractId}/documents/{documentId}/analysis
 ```
 
 Spring Boot는 업로드된 파일을 `AI_BASE_URL`의 `AI_ANALYZE_PATH`로 multipart 요청하고, AI 서비스의 JSON 결과를 `ai_analyses` 테이블에 저장한 뒤 프론트에 반환합니다.
