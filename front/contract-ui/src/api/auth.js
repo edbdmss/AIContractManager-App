@@ -1,4 +1,5 @@
 import client from "./client";
+import { clearSession } from "./session";
 
 const supportedProviders = new Set(["kakao", "naver"]);
 
@@ -38,4 +39,19 @@ export const completeSocialLogin = async ({ provider, code, state }) => {
 
   sessionStorage.removeItem(`oauthRedirectUri:${normalizedProvider}`);
   return response;
+};
+
+export const logout = async () => {
+  const refreshToken = localStorage.getItem("refreshToken");
+
+  // 화면과 저장소에서는 네트워크 응답을 기다리지 않고 즉시 로그아웃한다.
+  clearSession();
+
+  if (!refreshToken) return;
+
+  try {
+    await client.post("/auth/logout", { refreshToken });
+  } catch {
+    // 오프라인이어도 로컬 토큰은 이미 삭제되어 있다.
+  }
 };
