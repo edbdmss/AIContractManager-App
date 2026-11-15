@@ -266,7 +266,7 @@ export function Field({
         placeholderTextColor="#9aa496"
         keyboardType={number ? "numeric" : "default"}
         multiline={multiline}
-        maxLength={multiline ? 3000 : 120}
+        maxLength={multiline ? 3000 : 200}
         style={[
           styles.input,
           multiline && { minHeight: 100, textAlignVertical: "top" },
@@ -422,7 +422,7 @@ export function ContractRow({ contract: c }: { contract: Contract }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${c.title}, ${money(c.amount)}원, 상세 보기`}
+      accessibilityLabel={`${c.title}, ${c.server?.monthlyAmount === null ? "금액 확인 필요" : `${money(c.amount)}원`}, 상세 보기`}
       onPress={() => router.push(`/contract/${c.id}`)}
       style={({ pressed }) => [
         styles.row,
@@ -440,7 +440,9 @@ export function ContractRow({ contract: c }: { contract: Contract }) {
       </View>
       <View style={{ alignItems: "flex-end", gap: 5 }}>
         <Text style={[styles.text, { fontWeight: "600", fontSize: 12 }]}>
-          {money(c.amount)}원
+          {c.server?.monthlyAmount === null
+            ? "금액 확인 필요"
+            : `${money(c.amount)}원`}
         </Text>
         <Text style={[styles.muted, { fontSize: 10 }]}>매월</Text>
       </View>

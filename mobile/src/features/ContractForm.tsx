@@ -19,10 +19,12 @@ export function ContractForm({
   isNew?: boolean;
   onClose?: () => void;
 }) {
-  const { save, mode } = useApp();
+  const { save } = useApp();
   const [form, setForm] = useState(initial);
   const [amount, setAmount] = useState(
-    isNew && !initial.amount ? "" : String(initial.amount),
+    (isNew && !initial.amount) || initial.server?.monthlyAmount === null
+      ? ""
+      : String(initial.amount),
   );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,14 +34,12 @@ export function ContractForm({
     if (busy) return;
     const contract = {
       ...form,
-      id:
-        form.id ||
-        `contract-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: form.id,
       title: form.title.trim(),
-      provider: form.provider.trim() || "직접 등록",
+      provider: form.provider.trim(),
       amount: Number(amount),
     };
-    if (mode === "server" && !subscription) {
+    if (!subscription) {
       contract.eventDate =
         (contract.category === "구독"
           ? form.serverNextPaymentDate
@@ -52,10 +52,9 @@ export function ContractForm({
           ? "자동 갱신"
           : "계약 종료";
     }
-    const err =
-      amount.trim() === ""
-        ? "결제 금액을 입력해 주세요."
-: validateContract(contract,mode==='demo'||contract.category==='구독');
+    const err = !/^\d+$/.test(amount.trim())
+      ? "결제 금액을 입력해 주세요."
+      : validateContract(contract, contract.category === "구독");
     if (err) {
       setError(err);
       return;
@@ -84,6 +83,7 @@ export function ContractForm({
             <View style={{ flex: 1 }}>
               <Button
                 secondary
+                disabled={busy}
                 label="취소"
                 onPress={() => (onClose ? onClose() : router.back())}
               />
@@ -192,17 +192,10 @@ export function ContractForm({
             onChangeText={(v) => patch("endDate", v)}
             placeholder="YYYY-MM-DD"
           />
-          {mode === "demo" && (
-            <Field
-              label="다음 일정 이름"
-              value={form.eventLabel}
-              onChangeText={(v) => patch("eventLabel", v)}
-              placeholder="예: 월세 납부, 해지 신청 마감"
-            />
-          )}
+          {false}
         </>
       )}
-      {!subscription && mode === "server" && (
+      {!subscription && true && (
         <>
           <Field
             label="다음 결제일 / 자동 갱신일 (선택)"
@@ -218,7 +211,7 @@ export function ContractForm({
           />
         </>
       )}
-      {(subscription || mode === "demo") && (
+      {(subscription || false) && (
         <Field
           label={subscription ? "다음 결제일" : "다음 일정 날짜"}
           value={form.eventDate}
@@ -242,16 +235,10 @@ export function ContractForm({
         />
       )}
       <View style={{ marginTop: 14 }}>
-        <Info
-          title={
-            mode === "demo"
-              ? "기기에 안전하게 기록해요"
-              : "서버에 계약을 저장해요"
+        <Info title={"서버에 계약을 저장해요"}>
+          {
+            "로그인한 계정의 계약으로 저장돼요. 다른 기기에서도 같은 계정으로 조회할 수 있어요."
           }
-        >
-          {mode === "demo"
-            ? "데모 계약은 이 기기에만 저장돼요."
-            : "로그인한 계정의 계약으로 저장돼요. 다른 기기에서도 같은 계정으로 조회할 수 있어요."}
         </Info>
       </View>
     </Page>

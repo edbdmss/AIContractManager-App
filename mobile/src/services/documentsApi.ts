@@ -17,13 +17,13 @@ export function createDocumentsApi(client: HttpClient) {
       }
       return client.request<{ id: string; originalFilename: string }>(
         `/contracts/${encodeURIComponent(contractId)}/documents`,
-        { method: "POST", body: form },
+        { method: "POST", body: form, timeoutMs: 120000 },
       );
     },
     analyze: (contractId: string, documentId: string) =>
       client.request(
         `/contracts/${encodeURIComponent(contractId)}/documents/${encodeURIComponent(documentId)}/analysis`,
-        { method: "POST" },
+        { method: "POST", timeoutMs: 120000 },
       ),
   };
 }

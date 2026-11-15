@@ -6,34 +6,33 @@ import { Contract, emptyContract } from "../model";
 import { useApp } from "../state/AppStore";
 import { Loading, Page, Button, styles } from "../components/ui";
 export default function Subscription() {
-  const { suggestionId } = useLocalSearchParams<{ suggestionId?: string }>();
-  const { data, mode, acceptSuggestion } = useApp();
-  const suggestion = data.notices.find(
-    (n) => n.id === suggestionId,
-  )?.suggestion;
+  const { suggestionId } = useLocalSearchParams<{
+    suggestionId?: string;
+  }>();
+  const { loadSuggestion } = useApp();
   const [initial, setInitial] = useState<Contract | null>(
-    mode === "server" && suggestionId
+    suggestionId
       ? null
       : {
           ...emptyContract(),
           category: "구독",
-          title: suggestion?.title || "",
-          amount: suggestion?.amount || 0,
+          title: "",
+          amount: 0,
           eventLabel: "다음 결제",
-          provider: suggestion ? "결제 알림에서 등록" : "직접 등록",
+          provider: "",
         },
   );
   const [error, setError] = useState("");
   const started = useRef(false);
   useEffect(() => {
-    if (mode !== "server" || !suggestionId || started.current) return;
+    if (false || !suggestionId || started.current) return;
     started.current = true;
-    acceptSuggestion(suggestionId)
+    loadSuggestion(suggestionId)
       .then(setInitial)
       .catch((e) =>
         setError(e instanceof Error ? e.message : "제안을 불러오지 못했어요."),
       );
-  }, [mode, suggestionId, acceptSuggestion]);
+  }, [suggestionId, loadSuggestion]);
   if (error)
     return (
       <Page title="등록 제안" back>

@@ -1,3 +1,4 @@
+import { RequestState } from "../../components/RequestState";
 import React, { useState, useEffect } from "react";
 import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
@@ -15,16 +16,23 @@ import {
 import { Icon } from "../../components/Icon";
 import { localDate, money, dateText } from "../../model";
 export default function Home() {
-  const { data, mode, dashboard, setDashboardMonth, refresh } = useApp();
-  const activeContracts =
-    mode === "server"
-      ? data.contracts.filter((c) => c.server?.status === "ACTIVE")
-      : data.contracts;
+  const {
+    data,
+    ready,
+    contractsLoaded,
+    storageError,
+    dashboardLoading,
+    dashboardError,
+    dashboard,
+    setDashboardMonth,
+    refresh,
+  } = useApp();
+  const activeContracts = data.contracts.filter(
+    (c) => c.server?.status === "ACTIVE",
+  );
   const total =
-    mode === "server"
-      ? (dashboard?.monthlyExpense ??
-        activeContracts.reduce((s, c) => s + c.amount, 0))
-      : data.contracts.reduce((s, c) => s + c.amount, 0);
+    dashboard?.monthlyExpense ??
+    activeContracts.reduce((s, c) => s + c.amount, 0);
   const now = new Date();
   const [month, setMonth] = useState(
     new Date(now.getFullYear(), now.getMonth(), 1),
@@ -41,21 +49,15 @@ export default function Home() {
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
   const serverEvents =
     dashboard?.month === monthKey ? dashboard.calendarEvents : [];
-  const events =
-    mode === "server"
-      ? serverEvents
-          .filter((e) => e.date === selected)
-          .map((e, i) => ({
-            id: `${e.contractId}:${e.eventType}:${i}`,
-            contractId: e.contractId,
-            title: e.contractTitle,
-            eventLabel: e.title,
-            amount:
-              data.contracts.find((c) => c.id === e.contractId)?.amount || 0,
-          }))
-      : data.contracts
-          .filter((c) => c.eventDate === selected)
-          .map((c) => ({ ...c, contractId: c.id }));
+  const events = serverEvents
+    .filter((e) => e.date === selected)
+    .map((e, i) => ({
+      id: `${e.contractId}:${e.eventType}:${i}`,
+      contractId: e.contractId,
+      title: e.contractTitle,
+      eventLabel: e.title,
+      amount: data.contracts.find((c) => c.id === e.contractId)?.amount || 0,
+    }));
   const upcoming = data.contracts
     .filter(
       (c) => c.eventDate >= localDate(now) && c.eventLabel.includes("해지"),
@@ -89,6 +91,16 @@ export default function Home() {
     setDay(1);
   };
   const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  if (!contractsLoaded)
+    return (
+      <Page title="계약의 모든것">
+        <RequestState
+          loading={!ready}
+          error={storageError}
+          onRetry={() => void refresh()}
+        />
+      </Page>
+    );
   return (
     <Page
       title="계약의 모든것"
@@ -115,7 +127,7 @@ export default function Home() {
         </View>
       }
     >
-      {mode === "server" && (
+      {
         <Pressable
           accessibilityRole="button"
           onPress={() => void refresh()}
@@ -123,7 +135,7 @@ export default function Home() {
         >
           <Text style={styles.link}>다시 불러오기</Text>
         </Pressable>
-      )}
+      }
       <View style={{ paddingTop: 10, paddingBottom: 22 }}>
         <Text style={styles.muted}>오늘도 안심되는 하루</Text>
         <Text style={[styles.title, { marginTop: 8 }]}>
@@ -199,216 +211,225 @@ export default function Home() {
         <Text style={styles.muted}>현재 확인이 필요한 계약이 없어요.</Text>
       )}
       <Section title="계약 리포트" right={`${now.getMonth() + 1}월`} />
-      <Card>
-        <View style={styles.between}>
-          <View>
-            <Text style={styles.muted}>이번 달 고정 지출</Text>
-            <Text
-              style={{
-                fontSize: 31,
-                fontWeight: "700",
-                letterSpacing: -1,
-                color: colors.ink,
-                marginTop: 8,
-                marginBottom: 17,
-              }}
-            >
-              {money(total)}
-              <Text style={{ fontSize: 18, fontWeight: "400" }}> 원</Text>
-            </Text>
-          </View>
-          <View
-            style={{
-              padding: 9,
-              borderRadius: 12,
-              backgroundColor: colors.soft,
-            }}
-          >
-            <Icon name="wallet" />
-          </View>
-        </View>
-        <View
-          accessibilityLabel="카테고리별 지출 비율"
-          style={{ height: 13, flexDirection: "row", gap: 3, marginBottom: 9 }}
-        >
-          {groups
-            .filter((g) => g.amount > 0)
-            .map((g) => (
-              <View
-                key={g.name}
-                style={{
-                  flex: g.amount,
-                  backgroundColor: g.color,
-                  borderRadius: 4,
-                }}
-              />
-            ))}
-        </View>
-        {groups.map((g) => (
-          <View key={g.name} style={[styles.between, { marginTop: 13 }]}>
-            <View style={styles.row}>
-              <View
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: 7,
-                  backgroundColor: g.color,
-                }}
-              />
-              <Text style={styles.muted}>{g.name}</Text>
-            </View>
-            <Text style={[styles.text, { fontSize: 12, fontWeight: "600" }]}>
-              {money(g.amount)}원{" "}
-              <Text style={{ color: colors.muted, fontSize: 10 }}>
-                {total ? Math.round((g.amount / total) * 100) : 0}%
-              </Text>
-            </Text>
-          </View>
-        ))}
-      </Card>
-      <Card style={{ marginTop: 13 }}>
-        <View style={[styles.between, { marginBottom: 15 }]}>
-          <Text style={styles.h3}>
-            {month.getFullYear()}년 {month.getMonth() + 1}월
-          </Text>
-          <View style={{ flexDirection: "row" }}>
-            <IconButton
-              name="back"
-              label="이전 달"
-              onPress={() => changeMonth(-1)}
-            />
-            <IconButton
-              name="chevron"
-              label="다음 달"
-              onPress={() => changeMonth(1)}
-            />
-          </View>
-        </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-          {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-            <Text
-              key={d}
-              style={{
-                width: "14.2857%",
-                textAlign: "center",
-                color: colors.muted,
-                fontSize: 10,
-                marginBottom: 8,
-              }}
-            >
-              {d}
-            </Text>
-          ))}
-          {Array.from({ length: month.getDay() }, (_, i) => (
-            <View key={`blank${i}`} style={{ width: "14.2857%" }} />
-          ))}
-          {Array.from({ length: days }, (_, i) => {
-            const d = i + 1;
-            const hasEvent =
-              mode === "server"
-                ? serverEvents.some(
-                    (e) =>
-                      e.date ===
-                      localDate(
-                        new Date(month.getFullYear(), month.getMonth(), d),
-                      ),
-                  )
-                : data.contracts.some(
-                    (c) =>
-                      c.eventDate ===
-                      localDate(
-                        new Date(month.getFullYear(), month.getMonth(), d),
-                      ),
-                  );
-            return (
-              <Pressable
-                key={d}
-                accessibilityRole="button"
-                accessibilityState={{ selected: day === d }}
-                accessibilityLabel={`${month.getMonth() + 1}월 ${d}일${hasEvent ? ", 계약 일정 있음" : ""}`}
-                onPress={() => setDay(d)}
-                style={{
-                  width: "14.2857%",
-                  height: 35,
-                  borderRadius: 10,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: day === d ? colors.accent : "transparent",
-                }}
-              >
+      {dashboard && dashboard.month === monthKey ? (
+        <>
+          <Card>
+            <View style={styles.between}>
+              <View>
+                <Text style={styles.muted}>이번 달 고정 지출</Text>
                 <Text
                   style={{
-                    fontSize: 11,
-                    color: day === d ? "#fff" : colors.ink,
+                    fontSize: 31,
+                    fontWeight: "700",
+                    letterSpacing: -1,
+                    color: colors.ink,
+                    marginTop: 8,
+                    marginBottom: 17,
+                  }}
+                >
+                  {money(total)}
+                  <Text style={{ fontSize: 18, fontWeight: "400" }}> 원</Text>
+                </Text>
+              </View>
+              <View
+                style={{
+                  padding: 9,
+                  borderRadius: 12,
+                  backgroundColor: colors.soft,
+                }}
+              >
+                <Icon name="wallet" />
+              </View>
+            </View>
+            <View
+              accessibilityLabel="카테고리별 지출 비율"
+              style={{
+                height: 13,
+                flexDirection: "row",
+                gap: 3,
+                marginBottom: 9,
+              }}
+            >
+              {groups
+                .filter((g) => g.amount > 0)
+                .map((g) => (
+                  <View
+                    key={g.name}
+                    style={{
+                      flex: g.amount,
+                      backgroundColor: g.color,
+                      borderRadius: 4,
+                    }}
+                  />
+                ))}
+            </View>
+            {groups.map((g) => (
+              <View key={g.name} style={[styles.between, { marginTop: 13 }]}>
+                <View style={styles.row}>
+                  <View
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: 7,
+                      backgroundColor: g.color,
+                    }}
+                  />
+                  <Text style={styles.muted}>{g.name}</Text>
+                </View>
+                <Text
+                  style={[styles.text, { fontSize: 12, fontWeight: "600" }]}
+                >
+                  {money(g.amount)}원{" "}
+                  <Text style={{ color: colors.muted, fontSize: 10 }}>
+                    {total ? Math.round((g.amount / total) * 100) : 0}%
+                  </Text>
+                </Text>
+              </View>
+            ))}
+          </Card>
+          <Card style={{ marginTop: 13 }}>
+            <View style={[styles.between, { marginBottom: 15 }]}>
+              <Text style={styles.h3}>
+                {month.getFullYear()}년 {month.getMonth() + 1}월
+              </Text>
+              <View style={{ flexDirection: "row" }}>
+                <IconButton
+                  name="back"
+                  label="이전 달"
+                  onPress={() => changeMonth(-1)}
+                />
+                <IconButton
+                  name="chevron"
+                  label="다음 달"
+                  onPress={() => changeMonth(1)}
+                />
+              </View>
+            </View>
+            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+              {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
+                <Text
+                  key={d}
+                  style={{
+                    width: "14.2857%",
+                    textAlign: "center",
+                    color: colors.muted,
+                    fontSize: 10,
+                    marginBottom: 8,
                   }}
                 >
                   {d}
                 </Text>
-                {hasEvent && (
-                  <View
+              ))}
+              {Array.from({ length: month.getDay() }, (_, i) => (
+                <View key={`blank${i}`} style={{ width: "14.2857%" }} />
+              ))}
+              {Array.from({ length: days }, (_, i) => {
+                const d = i + 1;
+                const hasEvent = serverEvents.some(
+                  (e) =>
+                    e.date ===
+                    localDate(
+                      new Date(month.getFullYear(), month.getMonth(), d),
+                    ),
+                );
+                return (
+                  <Pressable
+                    key={d}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: day === d }}
+                    accessibilityLabel={`${month.getMonth() + 1}월 ${d}일${hasEvent ? ", 계약 일정 있음" : ""}`}
+                    onPress={() => setDay(d)}
                     style={{
-                      width: 3,
-                      height: 3,
-                      borderRadius: 3,
-                      backgroundColor: day === d ? "#fff" : "#d5a17d",
-                      position: "absolute",
-                      bottom: 3,
+                      width: "14.2857%",
+                      height: 35,
+                      borderRadius: 10,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor:
+                        day === d ? colors.accent : "transparent",
                     }}
-                  />
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
-        <View
-          style={{
-            borderTopWidth: 1,
-            borderTopColor: colors.line,
-            marginTop: 14,
-            paddingTop: 15,
-            gap: 10,
-          }}
-        >
-          {events.length ? (
-            events.map((c) => (
-              <Pressable
-                key={c.id}
-                accessibilityRole="button"
-                onPress={() => router.push(`/contract/${c.contractId}`)}
-                style={styles.row}
-              >
-                <View
-                  style={{
-                    backgroundColor: colors.soft,
-                    padding: 10,
-                    borderRadius: 12,
-                  }}
-                >
-                  <Text style={{ fontSize: 19, color: colors.accent }}>
-                    {day}
-                  </Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[styles.text, { fontSize: 12, fontWeight: "600" }]}
                   >
-                    {c.title} · {c.eventLabel}
-                  </Text>
-                  <Text style={styles.muted}>{money(c.amount)}원</Text>
-                </View>
-                <Icon name="chevron" size={16} />
-              </Pressable>
-            ))
-          ) : (
-            <Text style={styles.muted}>{day}일 · 등록된 일정이 없어요.</Text>
-          )}
-        </View>
-      </Card>
-      <Text style={[styles.muted, { fontSize: 10, marginTop: 16 }]}>
-        {mode === "demo"
-          ? "데모 모드 · 기기에 저장된 예시 데이터"
-          : "서버에 저장된 내 계약 · 월 지출은 활성 계약 기준"}
-      </Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        color: day === d ? "#fff" : colors.ink,
+                      }}
+                    >
+                      {d}
+                    </Text>
+                    {hasEvent && (
+                      <View
+                        style={{
+                          width: 3,
+                          height: 3,
+                          borderRadius: 3,
+                          backgroundColor: day === d ? "#fff" : "#d5a17d",
+                          position: "absolute",
+                          bottom: 3,
+                        }}
+                      />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View
+              style={{
+                borderTopWidth: 1,
+                borderTopColor: colors.line,
+                marginTop: 14,
+                paddingTop: 15,
+                gap: 10,
+              }}
+            >
+              {events.length ? (
+                events.map((c) => (
+                  <Pressable
+                    key={c.id}
+                    accessibilityRole="button"
+                    onPress={() => router.push(`/contract/${c.contractId}`)}
+                    style={styles.row}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: colors.soft,
+                        padding: 10,
+                        borderRadius: 12,
+                      }}
+                    >
+                      <Text style={{ fontSize: 19, color: colors.accent }}>
+                        {day}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.text,
+                          { fontSize: 12, fontWeight: "600" },
+                        ]}
+                      >
+                        {c.title} · {c.eventLabel}
+                      </Text>
+                      <Text style={styles.muted}>{money(c.amount)}원</Text>
+                    </View>
+                    <Icon name="chevron" size={16} />
+                  </Pressable>
+                ))
+              ) : (
+                <Text style={styles.muted}>
+                  {day}일 · 등록된 일정이 없어요.
+                </Text>
+              )}
+            </View>
+          </Card>
+        </>
+      ) : (
+        <RequestState
+          loading={dashboardLoading || !ready}
+          error={dashboardError || "계약 리포트를 불러오지 못했어요."}
+          onRetry={() => void refresh()}
+        />
+      )}
     </Page>
   );
 }

@@ -15,8 +15,10 @@ import {
 } from "../../components/ui";
 import { dateText, money } from "../../model";
 export default function Detail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { data, remove, mode, verify } = useApp();
+  const { id } = useLocalSearchParams<{
+    id: string;
+  }>();
+  const { data, remove, verify } = useApp();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const c = data.contracts.find((item) => item.id === id);
@@ -83,7 +85,7 @@ export default function Detail() {
               <Text accessibilityRole="alert" style={styles.error}>
                 {error}
               </Text>
-              {mode === "server" && c.server && !c.server.amountVerified && (
+              {c.server && !c.server.amountVerified && (
                 <Button
                   secondary
                   label="월 납부 금액 확인"
@@ -172,9 +174,7 @@ export default function Detail() {
             }
           />
           <Text style={[styles.muted, { fontSize: 10, marginTop: 17 }]}>
-            {mode === "demo"
-              ? "기기에 저장된 데모 계약입니다."
-              : "로그인한 계정의 서버 계약입니다."}
+            {"로그인한 계정의 서버 계약입니다."}
           </Text>
         </Page>
       </View>
