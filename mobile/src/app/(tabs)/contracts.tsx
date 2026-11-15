@@ -1,3 +1,4 @@
+import { RequestState } from "../../components/RequestState";
 import React, { useState } from "react";
 import { Text, TextInput, View, Pressable } from "react-native";
 import { router } from "expo-router";
@@ -13,7 +14,7 @@ import {
 } from "../../components/ui";
 import { Icon } from "../../components/Icon";
 export default function Contracts() {
-  const { data, mode, refresh } = useApp();
+  const { data, ready, contractsLoaded, storageError, refresh } = useApp();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("전체");
   const [sort, setSort] = useState(false);
@@ -23,15 +24,23 @@ export default function Contracts() {
       `${c.title} ${c.provider}`.toLowerCase().includes(query.toLowerCase()),
   );
   if (sort) list.sort((a, b) => b.amount - a.amount);
+  if (!contractsLoaded)
+    return (
+      <Page title="내 계약">
+        <RequestState
+          loading={!ready}
+          error={storageError}
+          onRetry={() => void refresh()}
+        />
+      </Page>
+    );
   return (
     <Page
       title="내 계약"
       right={
-        mode === "server" ? (
-          <Pressable accessibilityRole="button" onPress={() => void refresh()}>
-            <Text style={styles.link}>다시 불러오기</Text>
-          </Pressable>
-        ) : undefined
+        <Pressable accessibilityRole="button" onPress={() => void refresh()}>
+          <Text style={styles.link}>다시 불러오기</Text>
+        </Pressable>
       }
     >
       <View style={[styles.row, styles.input, { marginBottom: 18 }]}>

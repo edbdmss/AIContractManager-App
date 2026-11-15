@@ -15,9 +15,12 @@ export default function Upload() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState("");
-  const { mode, refresh } = useApp();
+  const { refresh } = useApp();
   const { client } = useAuth();
-  const pending = useRef<{ contractId?: string; documentId?: string }>({});
+  const pending = useRef<{
+    contractId?: string;
+    documentId?: string;
+  }>({});
   const analyze = async () => {
     if (!file || busy) return;
     setBusy(true);
@@ -96,21 +99,10 @@ export default function Upload() {
       back
       footer={
         <Button
-          label={
-            mode === "server"
-              ? "업로드하고 AI 분석하기"
-              : "직접 입력하고 등록하기"
-          }
-          disabled={busy || (mode === "server" && !file)}
+          label={"업로드하고 AI 분석하기"}
+          disabled={busy || !file}
           icon="doc"
-          onPress={() =>
-            mode === "server"
-              ? void analyze()
-              : router.push({
-                  pathname: "/new-contract",
-                  params: { sourceName: file?.name || "" },
-                })
-          }
+          onPress={() => void analyze()}
         />
       }
     >
@@ -120,16 +112,10 @@ export default function Upload() {
       <Text style={[styles.muted, { marginTop: 10, marginBottom: 23 }]}>
         파일을 선택하고 계약의 핵심 정보를 기록해요.
       </Text>
-      <Info
-        title={
-          mode === "server"
-            ? "AI가 계약 내용을 정리해요"
-            : "AI 자동 분석은 연결 준비 중이에요"
+      <Info title={"AI가 계약 내용을 정리해요"}>
+        {
+          "계약서를 서버로 업로드하고 분석한 뒤 상세 화면에서 내용을 확인하고 수정해 주세요."
         }
-      >
-        {mode === "server"
-          ? "계약서를 서버로 업로드하고 분석한 뒤 상세 화면에서 내용을 확인하고 수정해 주세요."
-          : "데모에서는 직접 입력할 수 있어요. 파일은 업로드되지 않아요."}
       </Info>
       <Text
         style={[
@@ -177,26 +163,17 @@ export default function Upload() {
         </Text>
       )}
       <View style={{ marginTop: 20 }}>
-        <Info
-          title={
-            mode === "server"
-              ? "원본 계약서를 함께 저장해요"
-              : "현재는 파일명만 함께 기록해요"
-          }
-        >
-          {mode === "server"
-            ? "분석에 실패해도 내 계약에서 생성한 계약을 확인할 수 있어요."
-            : "데모에서는 파일 내용을 저장하지 않아요. 원본 파일을 따로 보관해 주세요."}
+        <Info title={"원본 계약서를 함께 저장해요"}>
+          {"분석에 실패해도 내 계약에서 생성한 계약을 확인할 수 있어요."}
         </Info>
       </View>
       <Pressable
         accessibilityRole="button"
-        onPress={() =>
-          router.push({ pathname: "/new-contract", params: { sample: "1" } })
-        }
+        disabled={busy}
+        onPress={() => router.push("/new-contract")}
         style={{ paddingVertical: 20 }}
       >
-        <Text style={styles.link}>예시 계약 정보로 입력 화면 살펴보기 ›</Text>
+        <Text style={styles.link}>계약 정보를 직접 입력하기 ›</Text>
       </Pressable>
     </Page>
   );

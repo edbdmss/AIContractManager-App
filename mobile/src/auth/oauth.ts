@@ -53,31 +53,51 @@ async function exchangeOAuth(
     }),
   });
 }
-let exchange: {code:string;state:string;promise:Promise<Session>}|null=null;
-export function finishOAuth(client:HttpClient,params:{code?:string;state?:string;error?:string}):Promise<Session>{
- if(exchange&&exchange.code===params.code&&exchange.state===params.state)return exchange.promise;
- const promise=exchangeOAuth(client,params);if(params.code&&params.state)exchange={code:params.code,state:params.state,promise};return promise;
+let exchange: {
+  code: string;
+  state: string;
+  promise: Promise<Session>;
+} | null = null;
+export function finishOAuth(
+  client: HttpClient,
+  params: { code?: string; state?: string; error?: string },
+): Promise<Session> {
+  if (
+    exchange &&
+    exchange.code === params.code &&
+    exchange.state === params.state
+  )
+    return exchange.promise;
+  const promise = exchangeOAuth(client, params);
+  if (params.code && params.state)
+    exchange = { code: params.code, state: params.state, promise };
+  return promise;
 }
 export async function startOAuth(
   client: HttpClient,
   provider: Provider,
 ): Promise<Session | null> {
   checkNativeOAuth();
-  exchange=null;
+  exchange = null;
+  const nativeReturnUri = AuthSession.makeRedirectUri({
+    scheme: "contractmanager",
+    path: "oauth/callback",
+  });
   const redirectUri =
-    process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI ||
-    (Platform.OS === "web"
-      ? `${window.location.origin}/oauth/callback`
-      : AuthSession.makeRedirectUri({
-          scheme: "contractmanager",
-          path: "oauth/callback",
-        }));
+    Platform.OS === "web"
+      ? process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI ||
+        `${window.location.origin}/oauth/callback`
+      : process.env.EXPO_PUBLIC_NATIVE_OAUTH_REDIRECT_URI || nativeReturnUri;
   const result = await client.publicRequest<{
     authorizationUrl: string;
     state: string;
   }>(
     `/auth/${provider}/authorize?redirectUri=${encodeURIComponent(redirectUri)}`,
   );
+  const authorize = new URL(result.authorizationUrl);
+  const expected = provider === "kakao" ? "kauth.kakao.com" : "nid.naver.com";
+  if (authorize.protocol !== "https:" || authorize.hostname !== expected)
+    throw new Error("로그인 요청 주소를 확인하지 못했어요.");
   await pendingWrite({
     provider,
     state: result.state,
@@ -90,7 +110,7 @@ export async function startOAuth(
   }
   const response = await WebBrowser.openAuthSessionAsync(
     result.authorizationUrl,
-    redirectUri,
+    nativeReturnUri,
   );
   if (response.type !== "success") {
     await pendingWrite(null);

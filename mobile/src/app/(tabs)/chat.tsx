@@ -2,39 +2,51 @@ import React, { useRef, useState, useEffect } from "react";
 import { ScrollView, View, Text, TextInput, Pressable } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useApp } from "../../state/AppStore";
-import { Message, answerQuestion } from "../../model";
+import { Message } from "../../model";
 import { Page, Badge, colors, styles } from "../../components/ui";
 import { Icon } from "../../components/Icon";
 import { useAuth } from "../../auth/AuthContext";
 export default function Chat() {
-  const { contractId } = useLocalSearchParams<{ contractId?: string }>();
-  const { data, addMessages, mode } = useApp();
+  const { contractId } = useLocalSearchParams<{
+    contractId?: string;
+  }>();
+  const { data } = useApp();
   const { client } = useAuth();
   const [serverMessages, setServerMessages] = useState<Message[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const sessionId = useRef<string | null>(null);
-  const [loadedScope,setLoadedScope]=useState<string|null>(null);
-  const scope=`${mode}:${contractId||"all"}`;
-  const loading=mode==="server"&&loadedScope!==scope;
+  const [loadedScope, setLoadedScope] = useState<string | null>(null);
+  const scope = contractId || "all";
+  const loading = loadedScope !== scope;
   useEffect(() => {
-    if (mode !== "server") return;
     let active = true;
     sessionId.current = null;
     client
-      .request<{ id: string; contractId: string | null; createdAt: string }[]>(
-        "/chat/sessions",
-      )
+      .request<
+        {
+          id: string;
+          contractId: string | null;
+          createdAt: string;
+        }[]
+      >("/chat/sessions")
       .then(async (sessions) => {
         const match = sessions
           .filter(
             (s) => (s.contractId || undefined) === (contractId || undefined),
           )
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-        if(!active)return;
-        if(!match){setServerMessages([]);return;}
+        if (!active) return;
+        if (!match) {
+          setServerMessages([]);
+          return;
+        }
         const history = await client.request<
-          { id: string; role: string; content: string }[]
+          {
+            id: string;
+            role: string;
+            content: string;
+          }[]
         >(`/chat/sessions/${match.id}/messages`);
         if (active) {
           sessionId.current = match.id;
@@ -59,8 +71,8 @@ export default function Chat() {
     return () => {
       active = false;
     };
-  }, [client, contractId, mode,scope]);
-  const visibleMessages = mode === "server" ? serverMessages : data.messages;
+  }, [client, contractId, scope]);
+  const visibleMessages = serverMessages;
   const [input, setInput] = useState("");
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const selected = data.contracts.find((c) => c.id === contractId);
@@ -69,18 +81,17 @@ export default function Chat() {
     if (!q.trim()) return;
     const text = q.trim();
     const id = String(Date.now());
-    if (mode === "server") {
+    {
       setBusy(true);
       setError("");
       try {
         if (!sessionId.current) {
-          const created = await client.request<{ id: string }>(
-            "/chat/sessions",
-            {
-              method: "POST",
-              body: JSON.stringify(contractId ? { contractId } : {}),
-            },
-          );
+          const created = await client.request<{
+            id: string;
+          }>("/chat/sessions", {
+            method: "POST",
+            body: JSON.stringify(contractId ? { contractId } : {}),
+          });
           sessionId.current = created.id;
         }
         setServerMessages((prev) => [
@@ -89,7 +100,11 @@ export default function Chat() {
         ]);
         setInput("");
         const result = await client.request<{
-          message: { id: string; role: string; content: string };
+          message: {
+            id: string;
+            role: string;
+            content: string;
+          };
         }>(`/chat/sessions/${sessionId.current}/messages`, {
           method: "POST",
           body: JSON.stringify({ message: text }),
@@ -109,15 +124,6 @@ export default function Chat() {
       }
       return;
     }
-    addMessages([
-      { id: `${id}-user`, role: "user", text },
-      {
-        id: `${id}-assistant`,
-        role: "assistant",
-        text: answerQuestion(text, data.contracts, contractId),
-      },
-    ]);
-    setInput("");
   };
   useEffect(() => {
     scroll.current?.scrollToEnd({ animated: true });
@@ -125,7 +131,7 @@ export default function Chat() {
   return (
     <Page
       title="계약 도우미"
-      right={<Badge>{mode === "demo" ? "데모" : "AI"}</Badge>}
+      right={<Badge>{"AI"}</Badge>}
       scroll={false}
       footer={
         <View
@@ -188,9 +194,7 @@ export default function Chat() {
             ? `${selected.title} 계약을 기준으로 안내해요.`
             : "어려운 내용은 쉽게, 중요한 일정은 꼼꼼히."}
           {"\n"}
-          {mode === "demo"
-            ? "등록한 정보로 답하는 데모 도우미예요."
-            : "내 계약 정보를 바탕으로 AI 서버에 질문해요."}
+          {"내 계약 정보를 바탕으로 AI 서버에 질문해요."}
         </Text>
         {[
           "이번 달 고정 지출이 얼마야?",
@@ -229,7 +233,7 @@ export default function Chat() {
               : "답변을 준비하고 있어요."}
           </Text>
         )}
-        {(loading?[]:visibleMessages).map((m) => (
+        {(loading ? [] : visibleMessages).map((m) => (
           <View
             key={m.id}
             style={{
@@ -258,9 +262,7 @@ export default function Chat() {
           </View>
         ))}
         <Text style={[styles.muted, { fontSize: 10, marginTop: 18 }]}>
-          {mode === "demo"
-            ? "데모 답변이에요. 실제 계약 조건은 원본을 확인해 주세요."
-            : "AI 답변의 계약 조건은 원본과 함께 확인해 주세요."}
+          {"AI 답변의 계약 조건은 원본과 함께 확인해 주세요."}
         </Text>
       </ScrollView>
     </Page>

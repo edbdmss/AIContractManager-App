@@ -35,13 +35,19 @@ function Routes() {
           animation: "slide_from_right",
         }}
       >
-        <Stack.Protected guard={!!auth.session||auth.demo} redirectTo="/login">
-          <Stack.Screen name="(tabs)"/><Stack.Screen name="contract/[id]"/><Stack.Screen name="subscription"/><Stack.Screen name="notifications"/><Stack.Screen name="upload"/><Stack.Screen name="new-contract"/>
+        <Stack.Protected guard={!!auth.session} redirectTo="/login">
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="contract/[id]" />
+          <Stack.Screen name="subscription" />
+          <Stack.Screen name="notifications" />
+          <Stack.Screen name="upload" />
+          <Stack.Screen name="new-contract" />
         </Stack.Protected>
-        <Stack.Protected guard={!auth.session&&!auth.demo} redirectTo="/">
-          <Stack.Screen name="login"/>
+        <Stack.Protected guard={!auth.session} redirectTo="/">
+          <Stack.Screen name="login" />
         </Stack.Protected>
-        <Stack.Screen name="oauth/callback"/>
+        <Stack.Screen name="oauth/callback" />
+        <Stack.Screen name="oauth/native-callback" />
       </Stack>
       <StatusBar style="dark" />
     </View>

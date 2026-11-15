@@ -21,6 +21,9 @@ export type Session = Tokens & {
   email: string;
   provider: string;
 };
+export interface RequestOptions extends RequestInit {
+  timeoutMs?: number;
+}
 export type HttpClient = ReturnType<typeof createHttpClient>;
 export function createHttpClient(
   baseUrl: string,
@@ -34,14 +37,15 @@ export function createHttpClient(
   let refreshing: Promise<Session> | null = null;
   async function send<T>(
     path: string,
-    options: RequestInit = {},
+    options: RequestOptions = {},
     accessToken?: string,
   ): Promise<T> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 20000);
+    const { timeoutMs = 20000, ...requestOptions } = options;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
-        ...options,
+        ...requestOptions,
         headers: {
           Accept: "application/json",
           ...(options.body && typeof options.body === "string"
@@ -94,6 +98,8 @@ export function createHttpClient(
   async function refreshSession(original: Session) {
     const current = await auth.get();
     if (!current) throw new ApiError(401, "로그인이 필요해요.");
+    if (current.userId !== original.userId)
+      throw new ApiError(401, "로그인 계정이 변경됐어요. 다시 시도해 주세요.");
     if (current.accessToken !== original.accessToken) return current;
     if (!refreshing) {
       refreshing = (async () => {
@@ -124,7 +130,7 @@ export function createHttpClient(
   }
   async function request<T>(
     path: string,
-    options: RequestInit = {},
+    options: RequestOptions = {},
     authenticated = true,
   ): Promise<T> {
     const original = authenticated ? await auth.get() : null;
@@ -138,7 +144,11 @@ export function createHttpClient(
       try {
         return await send<T>(path, options, next.accessToken);
       } catch (retry) {
-        if (retry instanceof ApiError && retry.status === 401 && (await auth.get())?.accessToken===next.accessToken)
+        if (
+          retry instanceof ApiError &&
+          retry.status === 401 &&
+          (await auth.get())?.accessToken === next.accessToken
+        )
           await auth.expired();
         throw retry;
       }
@@ -146,7 +156,7 @@ export function createHttpClient(
   }
   return {
     request,
-    publicRequest: <T>(path: string, options?: RequestInit) =>
+    publicRequest: <T>(path: string, options?: RequestOptions) =>
       request<T>(path, options, false),
   };
 }

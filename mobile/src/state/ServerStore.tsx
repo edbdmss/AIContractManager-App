@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppData, Contract, emptyContract, Notice,localDate } from "../model";
+import { AppData, Contract, emptyContract, Notice, localDate } from "../model";
 import { useAuth } from "../auth/AuthContext";
 import {
   createContractsApi,
@@ -17,12 +17,11 @@ import { createDataApi } from "../services/dataApi";
 import type { Dashboard } from "../services/dataApi";
 import { errorText } from "../services/http";
 import type { Store } from "./AppStore";
-import {StoreContext} from "./StoreContext";
+import { StoreContext } from "./StoreContext";
 const empty = (): AppData => ({
   contracts: [],
   notices: [],
   pushEnabled: false,
-  messages: [],
 });
 export function ServerProvider({ children }: { children: React.ReactNode }) {
   const { client, session } = useAuth();
@@ -33,27 +32,37 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     [ready, setReady] = useState(!userId),
     [storageError, setError] = useState("");
   const generation = useRef(0);
-  const currentMonth = localDate(new Date()).slice(0,7);
+  const [contractsLoaded, setContractsLoaded] = useState(false),
+    [noticesLoaded, setNoticesLoaded] = useState(false),
+    [preferencesLoaded, setPreferencesLoaded] = useState(false),
+    [dashboardLoading, setDashboardLoading] = useState(false),
+    [dashboardError, setDashboardError] = useState("");
+  const reportGeneration = useRef(0);
+  const currentMonth = localDate(new Date()).slice(0, 7);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [dashboardMonth, setDashboardMonth] = useState(currentMonth);
   const monthRef = useRef(currentMonth);
-  useEffect(()=>{monthRef.current=dashboardMonth;},[dashboardMonth]);
+  useEffect(() => {
+    monthRef.current = dashboardMonth;
+  }, [dashboardMonth]);
   const refresh = useCallback(async () => {
     if (!userId) return;
     const version = ++generation.current;
+    const reportSeq = ++reportGeneration.current;
     try {
       const contracts = await api.list();
-      if (version !== generation.current)
-        return;
+      if (version !== generation.current) return;
       setData((prev) => ({ ...prev, contracts: contracts.map(fromServer) }));
+      setContractsLoaded(true);
       const results = await Promise.allSettled([
         extra.notices(),
         extra.preferences(),
         extra.dashboard(monthRef.current),
       ]);
-      if (version !== generation.current)
-        return;
+      if (version !== generation.current) return;
       const [notices, prefs, report] = results;
+      if (prefs.status === "fulfilled") setPreferencesLoaded(true);
+      if (notices.status === "fulfilled") setNoticesLoaded(true);
       setData((prev) => ({
         ...prev,
         notices:
@@ -64,15 +73,22 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
                 text: n.body,
                 contractId: n.contractId || undefined,
                 serverSuggestionId: n.suggestionId || undefined,
-                suggestion: n.suggestionId
-                  ? { title: n.title, amount: 0 }
-                  : undefined,
               }))
             : prev.notices,
         pushEnabled:
           prefs.status === "fulfilled" ? prefs.value.enabled : prev.pushEnabled,
       }));
-      if (report.status === "fulfilled") setDashboard(report.value);
+      if (
+        report.status === "fulfilled" &&
+        reportSeq === reportGeneration.current
+      ) {
+        setDashboard(report.value);
+        setDashboardError("");
+      } else if (
+        report.status === "rejected" &&
+        reportSeq === reportGeneration.current
+      )
+        setDashboardError(errorText(report.reason));
       setError(
         results.some((r) => r.status === "rejected")
           ? "계약은 불러왔지만 일부 알림·리포트를 불러오지 못했어요. 다시 불러오기를 눌러 주세요."
@@ -85,34 +101,68 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [api, extra, userId]);
   useEffect(() => {
-    let active=true;
-    if(userId)void Promise.resolve().then(()=>{if(active)return refresh();});
-    return()=>{active=false;};
+    let active = true;
+    if (userId)
+      void Promise.resolve().then(() => {
+        if (active) return refresh();
+      });
+    return () => {
+      active = false;
+    };
   }, [userId, refresh]);
   useEffect(() => {
     if (!userId) return;
     let active = true;
-    extra
-      .dashboard(dashboardMonth)
-      .then((value) => {
-        if (active) setDashboard(value);
-      })
-      .catch((e) => {
-        if (active) setError(errorText(e));
-      });
+    const seq = ++reportGeneration.current;
+    void Promise.resolve().then(async () => {
+      if (!active) return;
+      setDashboardLoading(true);
+      try {
+        const value = await extra.dashboard(dashboardMonth);
+        if (active && seq === reportGeneration.current) {
+          setDashboard(value);
+          setDashboardError("");
+        }
+      } catch (e) {
+        if (active && seq === reportGeneration.current)
+          setDashboardError(errorText(e));
+      } finally {
+        if (active && seq === reportGeneration.current)
+          setDashboardLoading(false);
+      }
+    });
     return () => {
       active = false;
     };
   }, [dashboardMonth, extra, userId]);
   const value: Store = {
+    contractsLoaded,
+    noticesLoaded,
+    preferencesLoaded,
+    dashboardLoading,
+    dashboardError,
     data,
     ready,
     storageError,
-    mode: "server",
     dashboard,
     setDashboardMonth,
     refresh,
     save: async (c, suggestionId) => {
+      const key = suggestionId
+        ? `contract-manager.draft:${userId}:${suggestionId}`
+        : null;
+      const acceptedKey = key ? `${key}:accepted` : null;
+      if (
+        suggestionId &&
+        acceptedKey &&
+        !(await AsyncStorage.getItem(acceptedKey))
+      ) {
+        await client.request(
+          `/subscription-suggestions/${encodeURIComponent(suggestionId)}/accept`,
+          { method: "POST" },
+        );
+        await AsyncStorage.setItem(acceptedKey, "true");
+      }
       const updating = !!c.server?.id;
       const saved = updating
         ? await api.update(c.id, toServer(c))
@@ -124,19 +174,31 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
           ? prev.contracts.map((old) => (old.id === mapped.id ? mapped : old))
           : [mapped, ...prev.contracts],
       }));
-      if (suggestionId) {
+      let completionFailed = false;
+      if (key) {
+        try {
+          await AsyncStorage.setItem(key, JSON.stringify(mapped));
+        } catch {
+          completionFailed = true;
+          setError(
+            "계약은 저장됐지만 등록 제안의 처리 상태를 기기에 기록하지 못했어요. 내 계약에서 확인해 주세요.",
+          );
+        }
+      }
+      if (suggestionId && !completionFailed) {
         try {
           await client.request(
             `/subscription-suggestions/${encodeURIComponent(suggestionId)}/complete`,
             { method: "POST", body: JSON.stringify({ contractId: mapped.id }) },
           );
         } catch {
+          completionFailed = true;
           setError(
             "계약은 저장됐지만 등록 제안 완료 처리는 실패했어요. 중복 등록하지 말고 알림을 확인해 주세요.",
           );
         }
       }
-      void refresh();
+      if (!completionFailed) void refresh();
       return mapped;
     },
     remove: async (id) => {
@@ -161,6 +223,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
       void refresh();
     },
     dismiss: async (id) => {
+      generation.current++;
       if (id) await extra.dismiss(id);
       else await extra.dismissAll();
       setData((prev) => ({
@@ -169,37 +232,34 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
       }));
     },
     togglePush: async () => {
+      generation.current++;
       const result = await extra.setPreferences(!data.pushEnabled);
       setData((prev) => ({ ...prev, pushEnabled: result.enabled }));
     },
-    addMessages: (messages) =>
-      setData((prev) => ({
-        ...prev,
-        messages: [...prev.messages, ...messages],
-      })),
-    acceptSuggestion: async (id) => {
+    loadSuggestion: async (id) => {
       const key = `contract-manager.draft:${userId}:${id}`;
       const cached = await AsyncStorage.getItem(key);
-      if (cached) return JSON.parse(cached) as Contract;
-      const result = await client.request<{
-        suggestionId: string;
-        subscriptionName: string;
-        estimatedAmount: number;
-        nextPaymentDate: string | null;
-      }>(`/subscription-suggestions/${encodeURIComponent(id)}/accept`, {
-        method: "POST",
-      });
-      const draft: Contract = {
+      if (cached) {
+        const parsed = JSON.parse(cached) as Contract;
+        if (parsed.server?.id) return fromServer(await api.get(parsed.id));
+        return parsed;
+      }
+      const pending = await client.request<
+        { id: string; merchantName: string; estimatedAmount: number }[]
+      >("/subscription-suggestions");
+      const suggestion = pending.find((item) => item.id === id);
+      if (!suggestion)
+        throw new Error("이미 처리되었거나 찾을 수 없는 등록 제안이에요.");
+      const contract = {
         ...emptyContract(),
-        category: "구독",
-        title: result.subscriptionName,
-        amount: result.estimatedAmount,
-        eventDate: result.nextPaymentDate || "",
+        category: "구독" as const,
+        title: suggestion.merchantName,
+        provider: suggestion.merchantName,
+        amount: suggestion.estimatedAmount,
         eventLabel: "다음 결제",
-        provider: "결제 알림에서 등록",
       };
-      await AsyncStorage.setItem(key, JSON.stringify(draft));
-      return draft;
+      await AsyncStorage.setItem(key, JSON.stringify(contract));
+      return contract;
     },
   };
   return (

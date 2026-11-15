@@ -4,13 +4,13 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "../components/Icon";
 import { colors, styles } from "../components/ui";
-import { useAuth, errorText } from "../auth/AuthContext";
+import { useAuth, errorText, configurationError } from "../auth/AuthContext";
 import { startOAuth, Provider } from "../auth/oauth";
 export default function Login() {
   const insets = useSafeAreaInsets();
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const { client, signIn, enterDemo, error } = useAuth();
+  const { client, signIn, error } = useAuth();
   const login = async (provider: Provider) => {
     if (busy) return;
     setBusy(true);
@@ -121,7 +121,7 @@ export default function Login() {
           <Pressable
             key={x.label}
             accessibilityRole="button"
-            disabled={busy}
+            disabled={busy || !!configurationError}
             onPress={() => void login(x.provider as Provider)}
             style={{
               height: 51,
@@ -137,12 +137,12 @@ export default function Login() {
             </Text>
           </Pressable>
         ))}
-        {!!(notice || error) && (
+        {!!(notice || error || configurationError) && (
           <Text
             accessibilityRole="alert"
             style={[styles.muted, { marginTop: 12 }]}
           >
-            {notice || error}
+            {notice || error || configurationError}
           </Text>
         )}
         <Text
@@ -155,15 +155,6 @@ export default function Login() {
             ? "로그인 페이지에 연결하고 있어요."
             : "카카오·네이버 계정으로 로그인해요."}
         </Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            enterDemo();
-          }}
-          style={{ padding: 18, alignItems: "center" }}
-        >
-          <Text style={styles.link}>로그인 없이 데모 둘러보기</Text>
-        </Pressable>
       </View>
     </ScrollView>
   );
