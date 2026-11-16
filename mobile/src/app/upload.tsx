@@ -110,20 +110,25 @@ export default function Upload() {
         계약서와 함께,{"\n"}중요한 내용을 한곳에.
       </Text>
       <Text style={[styles.muted, { marginTop: 10, marginBottom: 23 }]}>
-        파일을 선택하고 계약의 핵심 정보를 기록해요.
+
       </Text>
       <Info title={"AI가 계약 내용을 정리해요"}>
         {
-          "계약서를 서버로 업로드하고 분석한 뒤 상세 화면에서 내용을 확인하고 수정해 주세요."
+          "계약서를 업로드하면 AI가 분석해 줄 거예요. 내용을 확인하고 수정해 주세요."
         }
       </Info>
+      <View style={{ marginTop: 20 }}>
+        <Info title={"원본 계약서를 함께 저장해요"}>
+          {"분석에 실패해도 내 계약에서 생성한 계약을 확인할 수 있어요."}
+        </Info>
+      </View>
       <Text
         style={[
           styles.text,
           { fontSize: 12, fontWeight: "600", marginTop: 23, marginBottom: 10 },
         ]}
       >
-        계약서 파일 (선택)
+        계약서 파일
       </Text>
       <Pressable
         accessibilityRole="button"
@@ -150,9 +155,26 @@ export default function Upload() {
           PDF, JPG, PNG · 최대 20MB
         </Text>
       </Pressable>
-      {!!step && <Text style={[styles.link, { marginTop: 12 }]}>{step}</Text>}
+      {!!step && <Text style={[styles.link, { marginTop: 12 }]}>{step} </Text>}
       {file && (
-        <Text style={[styles.link, { marginTop: 12 }]}>{file.name}</Text>
+          <View style={{ marginTop: 20, flexDirection: "row", alignItems: "center" }}>
+            <Text style={[styles.text, { fontSize: 12, marginRight: 8 }]}>
+              선택된 파일:
+            </Text>
+            <Text
+                style={[
+                  styles.link,
+                  {
+                    backgroundColor: "#E2ECE1",
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 6,
+                  }
+                ]}
+            >
+              {file.name}
+            </Text>
+          </View>
       )}
       {!!error && (
         <Text
@@ -162,11 +184,7 @@ export default function Upload() {
           {error}
         </Text>
       )}
-      <View style={{ marginTop: 20 }}>
-        <Info title={"원본 계약서를 함께 저장해요"}>
-          {"분석에 실패해도 내 계약에서 생성한 계약을 확인할 수 있어요."}
-        </Info>
-      </View>
+
       <Pressable
         accessibilityRole="button"
         disabled={busy}

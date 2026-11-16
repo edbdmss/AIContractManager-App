@@ -136,7 +136,7 @@ export default function Contracts() {
           </Card>
         ))
       ) : (
-        <Empty text="일치하는 계약이 없어요.\n계약을 추가하거나 검색 조건을 바꿔보세요." />
+        <Empty text="계약을 추가하세요." />
       )}
     </Page>
   );
