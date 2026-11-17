@@ -58,12 +58,9 @@ export default function My() {
           <Text style={[styles.h3, { fontSize: 18 }]}>
             안녕하세요, {auth.session?.name || "사용자"}님
           </Text>
-          <Text style={[styles.muted, { fontSize: 11, marginTop: 7 }]}>
-            계약의 모든것과 함께 안심하는 일상
-          </Text>
         </View>
       </Card>
-      <Section title="나의 계약의 모든것" />
+      <Section title="설정" />
       <Card style={{ paddingVertical: 0, paddingHorizontal: 18 }}>
         {[
           {

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
-import { Contract, categories, validateContract } from "../model";
+import { Contract, categories, localDate, validateContract } from "../model";
 import { useApp } from "../state/AppStore";
 import { Page, Field, Info, Button, colors, styles } from "../components/ui";
+import { DatePickerField } from "../components/DatePickerField";
 export function ContractForm({
   initial,
   subscription = false,
@@ -28,10 +29,19 @@ export function ContractForm({
   );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const today = localDate(new Date());
   const patch = (key: keyof Contract, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
   const submit = async () => {
     if (busy) return;
+    if (isNew && !subscription && !form.startDate) {
+      setError("계약 시작일을 선택해 주세요.");
+      return;
+    }
+    if (isNew && !subscription && !form.serverNextPaymentDate) {
+      setError("다음 결제일을 선택해 주세요.");
+      return;
+    }
     const contract = {
       ...form,
       id: form.id,
@@ -123,7 +133,7 @@ export function ContractForm({
         label={subscription ? "구독명" : "계약명"}
         value={form.title}
         onChangeText={(v) => patch("title", v)}
-        placeholder="예: 넷플릭스, 우리집 월세"
+        placeholder="예: 넷플릭스, 멜론 등"
       />
       {!subscription && (
         <Field
@@ -180,43 +190,42 @@ export function ContractForm({
               </Pressable>
             ))}
           </View>
-          <Field
-            label="계약 시작일 (선택)"
+          <DatePickerField
+            label={`계약 시작일 (${isNew ? "필수" : "선택"})`}
             value={form.startDate}
-            onChangeText={(v) => patch("startDate", v)}
-            placeholder="YYYY-MM-DD"
+            onChange={(v) => patch("startDate", v)}
           />
-          <Field
+          <DatePickerField
             label="계약 종료일 (선택)"
             value={form.endDate}
-            onChangeText={(v) => patch("endDate", v)}
-            placeholder="YYYY-MM-DD"
+            onChange={(v) => patch("endDate", v)}
+            minimumDate={form.startDate || undefined}
           />
           {false}
         </>
       )}
       {!subscription && true && (
         <>
-          <Field
-            label="다음 결제일 / 자동 갱신일 (선택)"
+          <DatePickerField
+            label={`다음 결제일 / 자동 갱신일 (${isNew ? "필수" : "선택"})`}
             value={form.serverNextPaymentDate || ""}
-            onChangeText={(v) => patch("serverNextPaymentDate", v)}
-            placeholder="YYYY-MM-DD"
+            onChange={(v) => patch("serverNextPaymentDate", v)}
+            minimumDate={today}
           />
-          <Field
+          <DatePickerField
             label="해지 마감일 (선택)"
             value={form.serverCancellationDeadline || ""}
-            onChangeText={(v) => patch("serverCancellationDeadline", v)}
-            placeholder="YYYY-MM-DD"
+            onChange={(v) => patch("serverCancellationDeadline", v)}
+            minimumDate={today}
           />
         </>
       )}
       {(subscription || false) && (
-        <Field
-          label={subscription ? "다음 결제일" : "다음 일정 날짜"}
+        <DatePickerField
+          label={subscription ? "다음 결제일 (필수)" : "다음 일정 날짜"}
           value={form.eventDate}
-          onChangeText={(v) => patch("eventDate", v)}
-          placeholder="YYYY-MM-DD"
+          onChange={(v) => patch("eventDate", v)}
+          minimumDate={today}
         />
       )}
       <Field

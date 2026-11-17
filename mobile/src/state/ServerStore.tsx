@@ -151,18 +151,6 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
       const key = suggestionId
         ? `contract-manager.draft:${userId}:${suggestionId}`
         : null;
-      const acceptedKey = key ? `${key}:accepted` : null;
-      if (
-        suggestionId &&
-        acceptedKey &&
-        !(await AsyncStorage.getItem(acceptedKey))
-      ) {
-        await client.request(
-          `/subscription-suggestions/${encodeURIComponent(suggestionId)}/accept`,
-          { method: "POST" },
-        );
-        await AsyncStorage.setItem(acceptedKey, "true");
-      }
       const updating = !!c.server?.id;
       const saved = updating
         ? await api.update(c.id, toServer(c))
@@ -238,27 +226,41 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     },
     loadSuggestion: async (id) => {
       const key = `contract-manager.draft:${userId}:${id}`;
+      const acceptedKey = `${key}:accepted`;
       const cached = await AsyncStorage.getItem(key);
       if (cached) {
         const parsed = JSON.parse(cached) as Contract;
         if (parsed.server?.id) return fromServer(await api.get(parsed.id));
-        return parsed;
+        if (await AsyncStorage.getItem(acceptedKey)) return parsed;
       }
+
       const pending = await client.request<
         { id: string; merchantName: string; estimatedAmount: number }[]
       >("/subscription-suggestions");
       const suggestion = pending.find((item) => item.id === id);
       if (!suggestion)
         throw new Error("이미 처리되었거나 찾을 수 없는 등록 제안이에요.");
-      const contract = {
+
+      const accepted = await client.request<{
+        suggestionId: string;
+        subscriptionName: string;
+        estimatedAmount: number;
+        estimatedCycle: string;
+        nextPaymentDate: string | null;
+      }>(`/subscription-suggestions/${encodeURIComponent(id)}/accept`, {
+        method: "POST",
+      });
+      const contract: Contract = {
         ...emptyContract(),
-        category: "구독" as const,
-        title: suggestion.merchantName,
-        provider: suggestion.merchantName,
-        amount: suggestion.estimatedAmount,
+        category: "구독",
+        title: accepted.subscriptionName,
+        provider: accepted.subscriptionName,
+        amount: accepted.estimatedAmount,
+        eventDate: accepted.nextPaymentDate || "",
         eventLabel: "다음 결제",
       };
       await AsyncStorage.setItem(key, JSON.stringify(contract));
+      await AsyncStorage.setItem(acceptedKey, "true");
       return contract;
     },
   };
