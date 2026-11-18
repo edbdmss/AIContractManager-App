@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, ScrollView } from "react-native";
+import { View, Text, Pressable, ScrollView, Image } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "../components/Icon";
+import { KakaoSymbol } from "../components/KakaoSymbol";
 import { colors, styles } from "../components/ui";
 import { useAuth, errorText, configurationError } from "../auth/AuthContext";
 import { startOAuth, Provider } from "../auth/oauth";
@@ -40,7 +41,7 @@ export default function Login() {
     >
       <View>
         <View style={styles.row}>
-          <Icon name="leaf" size={28} />
+          <Image source={require("../../assets/brand-mascot-transparent.png")} resizeMode="contain" style={{ width: 46, height: 46 }} accessible={false} />
           <Text style={[styles.h3, { fontSize: 24 }]}>계약의 모든것</Text>
         </View>
         <Text
@@ -69,7 +70,6 @@ export default function Login() {
             boxShadow: "9px 13px 0 #aac8b2",
           }}
         >
-          <Icon name="leaf" size={29} />
           {[65, 65, 40].map((w, i) => (
             <View
               key={i}
@@ -108,7 +108,7 @@ export default function Login() {
             label: "카카오로 시작하기",
             color: "#fee500",
             ink: "#191919",
-            mark: "●",
+            mark: "",
           },
           {
             provider: "naver",
@@ -121,6 +121,7 @@ export default function Login() {
           <Pressable
             key={x.label}
             accessibilityRole="button"
+            accessibilityLabel={x.label}
             disabled={busy || !!configurationError}
             onPress={() => void login(x.provider as Provider)}
             style={{
@@ -132,9 +133,14 @@ export default function Login() {
               marginTop: 10,
             }}
           >
-            <Text style={{ fontSize: 13, fontWeight: "700", color: x.ink }}>
-              {x.mark} {x.label}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+              {x.provider === "kakao" ? <KakaoSymbol /> : (
+                <Text style={{ fontSize: 16, fontWeight: "900", color: x.ink }}>{x.mark}</Text>
+              )}
+              <Text style={{ fontSize: 13, fontWeight: "700", color: x.ink }}>
+                {x.label}
+              </Text>
+            </View>
           </Pressable>
         ))}
         {!!(notice || error || configurationError) && (

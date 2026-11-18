@@ -134,22 +134,6 @@ export default function Home() {
             잘 챙기고 있어요.
           </Text>
         </Text>
-        <View
-          style={{
-            position: "absolute",
-            right: 5,
-            top: 22,
-            backgroundColor: colors.soft,
-            width: 62,
-            height: 66,
-            borderRadius: 24,
-            alignItems: "center",
-            justifyContent: "center",
-            transform: [{ rotate: "8deg" }],
-          }}
-        >
-          <Icon name="leaf" size={33} />
-        </View>
       </View>
       <Section
         title={`등록된 계약  ${data.contracts.length}`}

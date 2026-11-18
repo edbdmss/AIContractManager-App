@@ -12,6 +12,7 @@ export function ContractForm({
   title = "계약 정보 수정",
   isNew = false,
   registration = isNew,
+  requireAmountConfirmation = false,
   onClose,
 }: {
   initial: Contract;
@@ -20,6 +21,7 @@ export function ContractForm({
   title?: string;
   isNew?: boolean;
   registration?: boolean;
+  requireAmountConfirmation?: boolean;
   onClose?: () => void;
 }) {
   const { save } = useApp();
@@ -44,7 +46,7 @@ export function ContractForm({
     setForm((prev) => ({ ...prev, [key]: value }));
   const submit = async () => {
     if (busy || completed) return;
-    if (!amountConfirmed) {
+    if (requireAmountConfirmation && !amountConfirmed) {
       setError("월 납부 금액 확인은 필수예요. 입력한 금액을 확인해 주세요.");
       return;
     }
@@ -162,7 +164,7 @@ export function ContractForm({
               <Button
                 label="저장하기"
                 onPress={() => void submit()}
-                disabled={busy || !amountConfirmed}
+                disabled={busy || (requireAmountConfirmation && !amountConfirmed)}
               />
             </View>
           </View>
@@ -212,7 +214,7 @@ export function ContractForm({
         number
         placeholder="0"
       />
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+      {requireAmountConfirmation && <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
         <Text style={[styles.muted, { flex: 1, fontSize: 11 }]}>
           {amountConfirmed ? "월 납부 금액을 확인했어요." : "금액 확인은 필수예요. 금액을 수정하면 다시 확인해 주세요."}
         </Text>
@@ -226,7 +228,7 @@ export function ContractForm({
         >
           <Text style={styles.badgeText}>{amountConfirmed ? "확인 완료" : "금액 확인"}</Text>
         </Pressable>
-      </View>
+      </View>}
       {!subscription && (
         <>
           <Text

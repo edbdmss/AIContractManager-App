@@ -85,7 +85,7 @@ export default function Detail() {
         />
       </Page>
     );
-  if (edit) return <ContractForm initial={c} registration={registering} title={registering ? "계약 정보 확인" : "계약 수정"} onClose={() => setEdit(false)} />;
+  if (edit) return <ContractForm initial={c} registration={registering} requireAmountConfirmation={registering} title={registering ? "계약 정보 확인" : "계약 수정"} onClose={() => setEdit(false)} />;
   return (
     <View style={{ flex: 1 }}>
       <View
@@ -139,7 +139,7 @@ export default function Detail() {
               <Text style={styles.muted}>월 납부 금액{registering ? " (확인 필수)" : ""}</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                 <Text style={[styles.text, { fontSize: 12, fontWeight: "600" }]}>{money(c.amount)}원</Text>
-                {c.server?.amountVerified ? (
+                {registering && (c.server?.amountVerified ? (
                   <Text style={styles.badgeText}>확인 완료</Text>
                 ) : (
                   <Pressable
@@ -161,7 +161,7 @@ export default function Detail() {
                   >
                     <Text style={styles.badgeText}>{busy ? "확인 중" : "금액 확인"}</Text>
                   </Pressable>
-                )}
+                ))}
               </View>
             </View>
             {[
