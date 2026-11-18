@@ -13,6 +13,7 @@ export interface ContractPayload {
   cancellationTerms: string | null;
   plainSummary: string | null;
   renewalCycleMonths?: number | null;
+  amountVerified?: boolean;
 }
 export interface ServerContract extends ContractPayload {
   id: string;
@@ -93,6 +94,7 @@ export function toServer(c: Contract): ContractPayload {
           ? c.eventDate || null
           : original?.cancellationDeadline || null,
     monthlyAmount: c.amount,
+    amountVerified: c.amountVerified ?? (original?.amountVerified === true && original.monthlyAmount === c.amount),
     renewalCycleMonths: c.renewalCycleMonths === undefined
       ? original?.renewalCycleMonths ?? null
       : c.renewalCycleMonths,

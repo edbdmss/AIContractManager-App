@@ -102,7 +102,17 @@ export default function Detail() {
               <Text accessibilityRole="alert" style={styles.error}>
                 {error}
               </Text>
-              <Button label={registering ? "계약 정보 확인" : "계약 수정"} onPress={() => setEdit(true)} />
+              {registering && !c.server?.amountVerified && (
+                <Text style={[styles.muted, { textAlign: "center" }]}>월 납부 금액을 먼저 확인해 주세요. (필수)</Text>
+              )}
+              <Button
+                label={registering ? "계약 정보 확인" : "계약 수정"}
+                disabled={busy || (registering && !c.server?.amountVerified)}
+                onPress={() => {
+                  if (registering && !c.server?.amountVerified) return;
+                  setEdit(true);
+                }}
+              />
               <Pressable
                 accessibilityRole="button"
                 onPress={() => setConfirm(true)}
@@ -126,7 +136,7 @@ export default function Detail() {
           </Card>
           <Card>
             <View style={[styles.between, { paddingVertical: 13, flexWrap: "wrap" }]}>
-              <Text style={styles.muted}>월 납부 금액</Text>
+              <Text style={styles.muted}>월 납부 금액{registering ? " (확인 필수)" : ""}</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                 <Text style={[styles.text, { fontSize: 12, fontWeight: "600" }]}>{money(c.amount)}원</Text>
                 {c.server?.amountVerified ? (

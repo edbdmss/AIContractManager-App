@@ -29,6 +29,11 @@ export function ContractForm({
       ? ""
       : String(initial.amount),
   );
+  const [confirmedAmount, setConfirmedAmount] = useState<number | null>(
+    initial.server?.amountVerified ? initial.amount : null,
+  );
+  const validAmount = /^\d+$/.test(amount.trim()) && Number.isSafeInteger(Number(amount)) && Number(amount) <= 9999999999999;
+  const amountConfirmed = validAmount && confirmedAmount === Number(amount);
   const initialCycle = initial.renewalCycleMonths ?? initial.server?.renewalCycleMonths ?? null;
   const [cycle, setCycle] = useState(initialCycle == null ? "" : String(initialCycle));
   const [error, setError] = useState("");
@@ -39,6 +44,10 @@ export function ContractForm({
     setForm((prev) => ({ ...prev, [key]: value }));
   const submit = async () => {
     if (busy || completed) return;
+    if (!amountConfirmed) {
+      setError("월 납부 금액 확인은 필수예요. 입력한 금액을 확인해 주세요.");
+      return;
+    }
     if (isNew && !subscription && !form.startDate) {
       setError("계약 시작일을 선택해 주세요.");
       return;
@@ -66,6 +75,7 @@ export function ContractForm({
       title: form.title.trim(),
       provider: form.provider.trim(),
       amount: Number(amount),
+      amountVerified: true,
       renewalCycleMonths: cycleText ? Number(cycleText) : null,
     };
     if (!subscription) {
@@ -152,7 +162,7 @@ export function ContractForm({
               <Button
                 label="저장하기"
                 onPress={() => void submit()}
-                disabled={busy}
+                disabled={busy || !amountConfirmed}
               />
             </View>
           </View>
@@ -195,10 +205,28 @@ export function ContractForm({
       <Field
         label={subscription ? "결제 금액 (원)" : "월 납부 금액 (원)"}
         value={amount}
-        onChangeText={setAmount}
+        onChangeText={(value) => {
+          setAmount(value);
+          setConfirmedAmount(null);
+        }}
         number
         placeholder="0"
       />
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+        <Text style={[styles.muted, { flex: 1, fontSize: 11 }]}>
+          {amountConfirmed ? "월 납부 금액을 확인했어요." : "금액 확인은 필수예요. 금액을 수정하면 다시 확인해 주세요."}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="입력한 월 납부 금액 확인"
+          accessibilityState={{ disabled: busy || !validAmount || amountConfirmed }}
+          disabled={busy || !validAmount || amountConfirmed}
+          onPress={() => { setConfirmedAmount(Number(amount)); setError(""); }}
+          style={[styles.badge, { minHeight: 36, justifyContent: "center", opacity: !validAmount || busy ? 0.55 : 1 }]}
+        >
+          <Text style={styles.badgeText}>{amountConfirmed ? "확인 완료" : "금액 확인"}</Text>
+        </Pressable>
+      </View>
       {!subscription && (
         <>
           <Text
