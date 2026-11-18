@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, Modal } from "react-native";
 import { router } from "expo-router";
 import { Contract, categories, localDate, validateContract } from "../model";
 import { useApp } from "../state/AppStore";
-import { Page, Field, Info, Button, colors, styles } from "../components/ui";
+import { Page, Field, Info, Button, Card, colors, styles } from "../components/ui";
 import { DatePickerField } from "../components/DatePickerField";
 export function ContractForm({
   initial,
@@ -11,6 +11,7 @@ export function ContractForm({
   suggestionId,
   title = "계약 정보 수정",
   isNew = false,
+  registration = isNew,
   onClose,
 }: {
   initial: Contract;
@@ -18,6 +19,7 @@ export function ContractForm({
   suggestionId?: string;
   title?: string;
   isNew?: boolean;
+  registration?: boolean;
   onClose?: () => void;
 }) {
   const { save } = useApp();
@@ -27,13 +29,16 @@ export function ContractForm({
       ? ""
       : String(initial.amount),
   );
+  const initialCycle = initial.renewalCycleMonths ?? initial.server?.renewalCycleMonths ?? null;
+  const [cycle, setCycle] = useState(initialCycle == null ? "" : String(initialCycle));
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const today = localDate(new Date());
   const patch = (key: keyof Contract, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
   const submit = async () => {
-    if (busy) return;
+    if (busy || completed) return;
     if (isNew && !subscription && !form.startDate) {
       setError("계약 시작일을 선택해 주세요.");
       return;
@@ -42,12 +47,26 @@ export function ContractForm({
       setError("다음 결제일을 선택해 주세요.");
       return;
     }
+    const cycleText = cycle.trim();
+    if (cycleText && (!/^\d+$/.test(cycleText) || Number(cycleText) < 1 || Number(cycleText) > 60)) {
+      setError("갱신 주기는 1~60개월 사이의 정수로 입력해 주세요.");
+      return;
+    }
+    if (!cycleText && initialCycle != null) {
+      setError("설정된 갱신 주기를 변경하려면 1~60개월을 입력해 주세요.");
+      return;
+    }
+    if (cycleText && !(subscription ? form.eventDate : form.serverNextPaymentDate)) {
+      setError("갱신 주기를 적용할 다음 결제일 / 자동 갱신일을 선택해 주세요.");
+      return;
+    }
     const contract = {
       ...form,
       id: form.id,
       title: form.title.trim(),
       provider: form.provider.trim(),
       amount: Number(amount),
+      renewalCycleMonths: cycleText ? Number(cycleText) : null,
     };
     if (!subscription) {
       contract.eventDate =
@@ -72,14 +91,45 @@ export function ContractForm({
     setBusy(true);
     try {
       const saved = await save(contract, suggestionId);
-      onClose?.();
-      router.replace(`/contract/${saved.id}`);
+      if (registration) {
+        setCompleted(true);
+      } else {
+        onClose?.();
+        router.replace(`/contract/${saved.id}`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "저장하지 못했어요.");
     } finally {
       setBusy(false);
     }
   };
+  if (completed) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={() => router.replace("/contracts")}
+        >
+          <View style={{ flex: 1, backgroundColor: "#172a2366", justifyContent: "center", alignItems: "center", padding: 24 }}>
+            <Card style={{ width: "100%", maxWidth: 400, padding: 25 }}>
+              <View accessibilityViewIsModal>
+                <Text accessibilityRole="header" style={styles.h3}>계약이 등록됐어요</Text>
+                <Text style={[styles.muted, { marginTop: 12, marginBottom: 22 }]}>
+                  저장한 계약은 내 계약에서 확인할 수 있어요. 어디로 이동할까요?
+                </Text>
+                <View style={{ gap: 10 }}>
+                  <Button label="내 계약 보기" onPress={() => router.replace("/contracts")} />
+                  <Button secondary label="홈으로" onPress={() => router.replace("/")} />
+                </View>
+              </View>
+            </Card>
+          </View>
+        </Modal>
+      </View>
+    );
+  }
   return (
     <Page
       title={title}
@@ -228,6 +278,39 @@ export function ContractForm({
           minimumDate={today}
         />
       )}
+      <View style={{ marginTop: 14 }}>
+        <Field
+          label="결제 · 갱신 주기 (개월, 선택)"
+          value={cycle}
+          onChangeText={setCycle}
+          number
+          placeholder="미설정 · 1~60개월"
+        />
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+          {[1, 3, 6, 12, 24].map((months) => (
+            <Pressable
+              key={months}
+              accessibilityRole="button"
+              accessibilityState={{ selected: Number(cycle) === months }}
+              onPress={() => setCycle(String(months))}
+              style={{ paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, backgroundColor: Number(cycle) === months ? colors.accent : colors.soft }}
+            >
+              <Text style={{ fontSize: 12, color: Number(cycle) === months ? "#fff" : colors.accent }}>
+                {months % 12 === 0 ? `${months / 12}년` : `${months}개월`}
+              </Text>
+            </Pressable>
+          ))}
+          {initialCycle == null && (
+            <Pressable accessibilityRole="button" accessibilityState={{ selected: !cycle }} onPress={() => setCycle("")} style={{ paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, backgroundColor: !cycle ? colors.accent : colors.soft }}>
+              <Text style={{ fontSize: 12, color: !cycle ? "#fff" : colors.accent }}>미설정</Text>
+            </Pressable>
+          )}
+        </View>
+        <Text style={[styles.muted, { fontSize: 11 }]}>
+          선택한 주기에 따라 다음 결제일과 알림 일정이 갱신돼요. 알림은 일정 3일 전 오전 9시에 예약돼요.
+          {initialCycle == null ? " 선택하지 않으면 주기를 자동으로 설정하지 않아요." : " 기존에 설정한 주기를 다른 개월 수로 변경할 수 있어요."}
+        </Text>
+      </View>
       <Field
         label={subscription ? "추가 정보 (선택)" : "계약 요약 (선택)"}
         value={form.summary}

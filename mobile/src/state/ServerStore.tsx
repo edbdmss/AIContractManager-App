@@ -31,6 +31,9 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<AppData>(empty),
     [ready, setReady] = useState(!userId),
     [storageError, setError] = useState("");
+  const [attentionContracts, setAttentionContracts] = useState<Contract[]>([]);
+  const [attentionLoaded, setAttentionLoaded] = useState(false);
+  const [attentionError, setAttentionError] = useState("");
   const generation = useRef(0);
   const [contractsLoaded, setContractsLoaded] = useState(false),
     [noticesLoaded, setNoticesLoaded] = useState(false),
@@ -58,9 +61,17 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
         extra.notices(),
         extra.preferences(),
         extra.dashboard(monthRef.current),
+        api.attention(),
       ]);
       if (version !== generation.current) return;
-      const [notices, prefs, report] = results;
+      const [notices, prefs, report, attention] = results;
+      setAttentionLoaded(true);
+      if (attention.status === "fulfilled") {
+        setAttentionContracts(attention.value.map(fromServer));
+        setAttentionError("");
+      } else {
+        setAttentionError(errorText(attention.reason));
+      }
       if (prefs.status === "fulfilled") setPreferencesLoaded(true);
       if (notices.status === "fulfilled") setNoticesLoaded(true);
       setData((prev) => ({
@@ -91,7 +102,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
         setDashboardError(errorText(report.reason));
       setError(
         results.some((r) => r.status === "rejected")
-          ? "계약은 불러왔지만 일부 알림·리포트를 불러오지 못했어요. 다시 불러오기를 눌러 주세요."
+          ? "계약은 불러왔지만 일부 정보를 불러오지 못했어요. 화면을 아래로 당겨 새로고침해 주세요."
           : "",
       );
     } catch (e) {
@@ -137,6 +148,9 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
   }, [dashboardMonth, extra, userId]);
   const value: Store = {
     contractsLoaded,
+    attentionContracts,
+    attentionLoaded,
+    attentionError,
     noticesLoaded,
     preferencesLoaded,
     dashboardLoading,
@@ -158,9 +172,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
       const mapped = fromServer(saved);
       setData((prev) => ({
         ...prev,
-        contracts: updating
-          ? prev.contracts.map((old) => (old.id === mapped.id ? mapped : old))
-          : [mapped, ...prev.contracts],
+        contracts: [mapped, ...prev.contracts.filter((old) => old.id !== mapped.id)],
       }));
       let completionFailed = false;
       if (key) {
@@ -199,8 +211,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
       void refresh();
     },
     verify: async (id) => {
-      const c = data.contracts.find((c) => c.id === id);
-      if (!c) return;
+      const c = data.contracts.find((c) => c.id === id) || fromServer(await api.get(id));
       const saved = await api.verify(id, c.amount);
       setData((prev) => ({
         ...prev,

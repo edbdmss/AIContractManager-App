@@ -2,7 +2,6 @@ import React from "react";
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Icon, IconName } from "./Icon";
+import { PullRefreshScrollView } from "./PullRefreshScrollView";
 import { Category, Contract, money } from "../model";
 export const colors = {
   accent: "#216650",
@@ -282,6 +282,7 @@ export function Page({
   right,
   footer,
   scroll = true,
+  onRefresh,
 }: {
   title: string;
   children: React.ReactNode;
@@ -289,6 +290,7 @@ export function Page({
   right?: React.ReactNode;
   footer?: React.ReactNode;
   scroll?: boolean;
+  onRefresh?: () => Promise<void>;
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -327,9 +329,11 @@ export function Page({
         </View>
       </View>
       {scroll ? (
-        <ScrollView
+        <PullRefreshScrollView
+          onRefresh={onRefresh}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
+            flexGrow: 1,
             paddingHorizontal: 21,
             paddingTop: 7,
             paddingBottom: 30,
@@ -337,7 +341,7 @@ export function Page({
           }}
         >
           {children}
-        </ScrollView>
+        </PullRefreshScrollView>
       ) : (
         children
       )}
