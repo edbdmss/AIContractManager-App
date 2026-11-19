@@ -24,6 +24,9 @@ export default function Home() {
     dashboardLoading,
     dashboardError,
     dashboard,
+    attentionContracts,
+    attentionLoaded,
+    attentionError,
     setDashboardMonth,
     refresh,
   } = useApp();
@@ -58,11 +61,6 @@ export default function Home() {
       eventLabel: e.title,
       amount: data.contracts.find((c) => c.id === e.contractId)?.amount || 0,
     }));
-  const upcoming = data.contracts
-    .filter(
-      (c) => c.eventDate >= localDate(now) && c.eventLabel.includes("해지"),
-    )
-    .sort((a, b) => a.eventDate.localeCompare(b.eventDate))[0];
   const groups = [
     {
       name: "부동산",
@@ -93,7 +91,7 @@ export default function Home() {
   const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
   if (!contractsLoaded)
     return (
-      <Page title="계약의 모든것">
+      <Page title="계약의 모든것" onRefresh={refresh}>
         <RequestState
           loading={!ready}
           error={storageError}
@@ -104,6 +102,7 @@ export default function Home() {
   return (
     <Page
       title="계약의 모든것"
+      onRefresh={refresh}
       right={
         <View>
           <IconButton
@@ -127,15 +126,6 @@ export default function Home() {
         </View>
       }
     >
-      {
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => void refresh()}
-          style={{ alignSelf: "flex-end", padding: 8 }}
-        >
-          <Text style={styles.link}>다시 불러오기</Text>
-        </Pressable>
-      }
       <View style={{ paddingTop: 10, paddingBottom: 22 }}>
         <Text style={styles.muted}>오늘도 안심되는 하루</Text>
         <Text style={[styles.title, { marginTop: 8 }]}>
@@ -144,22 +134,6 @@ export default function Home() {
             잘 챙기고 있어요.
           </Text>
         </Text>
-        <View
-          style={{
-            position: "absolute",
-            right: 5,
-            top: 22,
-            backgroundColor: colors.soft,
-            width: 62,
-            height: 66,
-            borderRadius: 24,
-            alignItems: "center",
-            justifyContent: "center",
-            transform: [{ rotate: "8deg" }],
-          }}
-        >
-          <Icon name="leaf" size={33} />
-        </View>
       </View>
       <Section
         title={`등록된 계약  ${data.contracts.length}`}
@@ -185,14 +159,18 @@ export default function Home() {
         )}
       </Card>
       <Section title="확인이 필요한 계약" />
-      {upcoming ? (
+      {!attentionLoaded || attentionError ? (
+        <RequestState loading={!attentionLoaded} error={attentionError} onRetry={() => void refresh()} />
+      ) : attentionContracts.length ? attentionContracts.map((contract) => (
         <Pressable
+          key={contract.id}
           accessibilityRole="button"
-          onPress={() => router.push(`/contract/${upcoming.id}`)}
+          onPress={() => router.push(`/contract/${contract.id}`)}
           style={{
             backgroundColor: "#f9efe5",
             borderRadius: 17,
             padding: 17,
+            marginBottom: 10,
             flexDirection: "row",
             gap: 12,
           }}
@@ -200,15 +178,15 @@ export default function Home() {
           <Icon name="bell" color="#996b4d" size={19} />
           <View style={{ flex: 1, gap: 5 }}>
             <Text style={{ fontSize: 12, color: "#996b4d", fontWeight: "700" }}>
-              {upcoming.title} · {upcoming.eventLabel}
+              {contract.title} · 계약 만료 예정
             </Text>
             <Text style={{ fontSize: 11, color: "#996b4d" }}>
-              {dateText(upcoming.eventDate)}까지 확인해 주세요.
+              {dateText(contract.endDate)}에 만료돼요. 계약 내용을 확인해 주세요.
             </Text>
           </View>
         </Pressable>
-      ) : (
-        <Text style={styles.muted}>현재 확인이 필요한 계약이 없어요.</Text>
+      )) : (
+        <Text style={styles.muted}>7일 이내 만료되는 계약이 없어요.</Text>
       )}
       <Section title="계약 리포트" right={`${now.getMonth() + 1}월`} />
       {dashboard && dashboard.month === monthKey ? (

@@ -13,15 +13,31 @@ import {
   colors,
   styles,
 } from "../../components/ui";
-import { dateText, money } from "../../model";
+import { dateText, money, Contract } from "../../model";
+import { useAuth } from "../../auth/AuthContext";
+import { createContractsApi, fromServer } from "../../services/contractsApi";
 export default function Detail() {
-  const { id } = useLocalSearchParams<{
-    id: string;
+  const { id, registration } = useLocalSearchParams<{
+    id: string; registration?: string;
   }>();
+  const registering = registration === "true";
+  const { client } = useAuth();
+  const [draft, setDraft] = useState<Contract | null>(null);
+  const [loading, setLoading] = useState(registering);
   const { data, remove, verify } = useApp();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const c = data.contracts.find((item) => item.id === id);
+  const c = registering ? draft : data.contracts.find((item) => item.id === id);
+  useEffect(() => {
+    if (!registering) return;
+    let active = true;
+    createContractsApi(client).get(id).then((value) => {
+      if (active) setDraft(fromServer(value));
+    }).catch((e) => {
+      if (active) setError(e instanceof Error ? e.message : "분석 내용을 불러오지 못했어요.");
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [client, id, registering]);
   const [edit, setEdit] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const cancelRef = useRef<React.ComponentRef<typeof View>>(null);
@@ -58,17 +74,18 @@ export default function Detail() {
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [confirm]);
+  if (loading) return <Page title="계약 상세" back><Text style={styles.muted}>분석 내용을 불러오고 있어요.</Text></Page>;
   if (!c)
     return (
       <Page title="계약 상세" back>
-        <Empty text="이 계약을 찾을 수 없어요." />
+        <Empty text={error || "이 계약을 찾을 수 없어요."} />
         <Button
           label="내 계약으로 이동"
           onPress={() => router.replace("/contracts")}
         />
       </Page>
     );
-  if (edit) return <ContractForm initial={c} onClose={() => setEdit(false)} />;
+  if (edit) return <ContractForm initial={c} registration={registering} requireAmountConfirmation={registering} title={registering ? "계약 정보 확인" : "계약 수정"} onClose={() => setEdit(false)} />;
   return (
     <View style={{ flex: 1 }}>
       <View
@@ -85,33 +102,24 @@ export default function Detail() {
               <Text accessibilityRole="alert" style={styles.error}>
                 {error}
               </Text>
-              {c.server && !c.server.amountVerified && (
-                <Button
-                  secondary
-                  label="월 납부 금액 확인"
-                  disabled={busy}
-                  onPress={async () => {
-                    setBusy(true);
-                    try {
-                      await verify(c.id);
-                    } catch (e) {
-                      setError(
-                        e instanceof Error ? e.message : "확인에 실패했어요.",
-                      );
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                />
+              {registering && !c.server?.amountVerified && (
+                <Text style={[styles.muted, { textAlign: "center" }]}>월 납부 금액을 먼저 확인해 주세요. (필수)</Text>
               )}
-              <Button label="계약 정보 수정" onPress={() => setEdit(true)} />
+              <Button
+                label={registering ? "계약 정보 확인" : "계약 수정"}
+                disabled={busy || (registering && !c.server?.amountVerified)}
+                onPress={() => {
+                  if (registering && !c.server?.amountVerified) return;
+                  setEdit(true);
+                }}
+              />
               <Pressable
                 accessibilityRole="button"
                 onPress={() => setConfirm(true)}
                 style={{ alignItems: "center", padding: 10 }}
               >
                 <Text style={{ color: colors.danger, fontSize: 12 }}>
-                  계약 삭제
+                  {registering ? "등록 취소" : "계약 삭제"}
                 </Text>
               </Pressable>
             </>
@@ -127,20 +135,49 @@ export default function Detail() {
             </Text>
           </Card>
           <Card>
+            <View style={[styles.between, { paddingVertical: 13, flexWrap: "wrap" }]}>
+              <Text style={styles.muted}>월 납부 금액{registering ? " (확인 필수)" : ""}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <Text style={[styles.text, { fontSize: 12, fontWeight: "600" }]}>{money(c.amount)}원</Text>
+                {registering && (c.server?.amountVerified ? (
+                  <Text style={styles.badgeText}>확인 완료</Text>
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="월 납부 금액 확인"
+                    accessibilityState={{ disabled: busy }}
+                    disabled={busy}
+                    style={[styles.badge, { minHeight: 36, justifyContent: "center", opacity: busy ? 0.55 : 1 }]}
+                    onPress={async () => {
+                      setBusy(true);
+                      setError("");
+                      try {
+                        await verify(c.id);
+                        if (registering) setDraft(fromServer(await createContractsApi(client).get(c.id)));
+                      } catch (e) {
+                        setError(e instanceof Error ? e.message : "확인에 실패했어요.");
+                      } finally { setBusy(false); }
+                    }}
+                  >
+                    <Text style={styles.badgeText}>{busy ? "확인 중" : "금액 확인"}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
             {[
-              ["월 납부 금액", `${money(c.amount)}원`],
               [c.eventLabel, dateText(c.eventDate)],
               ["계약 시작일", dateText(c.startDate)],
               ["계약 종료일", dateText(c.endDate)],
               ["카테고리", c.category],
-            ].map(([key, value], i) => (
+              ["결제 · 갱신 주기", c.renewalCycleMonths ? `${c.renewalCycleMonths}개월` : "미설정"],
+            ].map(([key, value]) => (
               <View
                 key={key}
                 style={[
                   styles.between,
                   {
                     paddingVertical: 13,
-                    borderTopWidth: i ? 1 : 0,
+                    borderTopWidth: 1,
                     borderTopColor: colors.line,
                   },
                 ]}
@@ -165,16 +202,16 @@ export default function Detail() {
               참고 파일: {c.sourceName}
             </Text>
           )}
-          <Button
+          {!registering && <Button
             secondary
             icon="chat"
             label="이 계약에 대해 물어보기"
             onPress={() =>
               router.push({ pathname: "/chat", params: { contractId: c.id } })
             }
-          />
+          />}
           <Text style={[styles.muted, { fontSize: 10, marginTop: 17 }]}>
-            {"로그인한 계정의 서버 계약입니다."}
+            {registering ? "아직 등록되지 않은 계약이에요. 계약 정보를 확인하고 저장해 주세요." : "로그인한 계정의 서버 계약입니다."}
           </Text>
         </Page>
       </View>
@@ -195,11 +232,12 @@ export default function Detail() {
         >
           <Card style={{ padding: 25 }}>
             <Text accessibilityRole="header" style={styles.h3}>
-              계약을 삭제할까요?
+              {registering ? "계약 등록을 취소할까요?" : "계약을 삭제할까요?"}
             </Text>
             <Text style={[styles.muted, { marginVertical: 15 }]}>
-              {c.title} 계약과 관련 알림이 삭제돼요. 삭제한 계약은 되돌릴 수
-              없어요.
+              {registering
+                ? "분석한 내용이 삭제되고 계약은 등록되지 않아요. 다시 등록하려면 문서를 다시 업로드해야 해요."
+                : `${c.title} 계약과 관련 알림이 삭제돼요. 삭제한 계약은 되돌릴 수 없어요.`}
             </Text>
             <View style={{ gap: 10 }}>
               <Pressable
@@ -209,12 +247,12 @@ export default function Detail() {
                 style={[styles.button, { backgroundColor: colors.soft }]}
               >
                 <Text style={[styles.buttonText, { color: colors.accent }]}>
-                  유지하기
+                  {registering ? "계속 등록하기" : "유지하기"}
                 </Text>
               </Pressable>
               <Button
                 danger
-                label="삭제하기"
+                label={registering ? "등록 취소하기" : "삭제하기"}
                 disabled={busy}
                 onPress={async () => {
                   setBusy(true);
@@ -225,7 +263,7 @@ export default function Detail() {
                     router.replace("/contracts");
                   } catch (e) {
                     setError(
-                      e instanceof Error ? e.message : "삭제하지 못했어요.",
+                      e instanceof Error ? e.message : registering ? "등록을 취소하지 못했어요." : "삭제하지 못했어요.",
                     );
                     setConfirm(false);
                   } finally {

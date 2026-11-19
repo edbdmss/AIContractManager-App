@@ -26,7 +26,7 @@ export default function Contracts() {
   if (sort) list.sort((a, b) => b.amount - a.amount);
   if (!contractsLoaded)
     return (
-      <Page title="내 계약">
+      <Page title="내 계약" onRefresh={refresh}>
         <RequestState
           loading={!ready}
           error={storageError}
@@ -37,11 +37,7 @@ export default function Contracts() {
   return (
     <Page
       title="내 계약"
-      right={
-        <Pressable accessibilityRole="button" onPress={() => void refresh()}>
-          <Text style={styles.link}>다시 불러오기</Text>
-        </Pressable>
-      }
+      onRefresh={refresh}
     >
       <View style={[styles.row, styles.input, { marginBottom: 18 }]}>
         <Icon name="search" size={18} color={colors.muted} />

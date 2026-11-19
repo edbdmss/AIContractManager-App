@@ -14,6 +14,9 @@ export interface Store {
   dashboardLoading: boolean;
   dashboardError: string;
   dashboard: Dashboard | null;
+  attentionContracts: Contract[];
+  attentionLoaded: boolean;
+  attentionError: string;
   setDashboardMonth: (month: string) => void;
   refresh: () => Promise<void>;
   verify: (id: string) => Promise<void>;

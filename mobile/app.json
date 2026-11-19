@@ -25,7 +25,16 @@
     "plugins": [
       "expo-router",
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#f5f6f2",
+          "image": "./assets/startup-logo.png",
+          "imageWidth": 240,
+          "resizeMode": "contain"
+        }
+      ]
     ],
     "scheme": "contractmanager",
     "backgroundColor": "#f5f6f2"

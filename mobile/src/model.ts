@@ -16,6 +16,8 @@ export interface Contract {
   provider: string;
   category: Category;
   amount: number;
+  renewalCycleMonths?: number | null;
+  amountVerified?: boolean;
   startDate: string;
   endDate: string;
   eventDate: string;

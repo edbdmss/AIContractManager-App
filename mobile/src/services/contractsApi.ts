@@ -12,6 +12,8 @@ export interface ContractPayload {
   penaltyAmount: number | null;
   cancellationTerms: string | null;
   plainSummary: string | null;
+  renewalCycleMonths?: number | null;
+  amountVerified?: boolean;
 }
 export interface ServerContract extends ContractPayload {
   id: string;
@@ -44,6 +46,7 @@ export function fromServer(c: ServerContract): Contract {
     provider: c.providerName || "",
     category,
     amount: c.monthlyAmount ?? 0,
+    renewalCycleMonths: c.renewalCycleMonths ?? null,
     startDate: c.contractStartDate || "",
     endDate: c.contractEndDate || "",
     eventDate,
@@ -91,6 +94,10 @@ export function toServer(c: Contract): ContractPayload {
           ? c.eventDate || null
           : original?.cancellationDeadline || null,
     monthlyAmount: c.amount,
+    amountVerified: c.amountVerified ?? (original?.amountVerified === true && original.monthlyAmount === c.amount),
+    renewalCycleMonths: c.renewalCycleMonths === undefined
+      ? original?.renewalCycleMonths ?? null
+      : c.renewalCycleMonths,
     penaltyAmount: original?.penaltyAmount ?? null,
     cancellationTerms: c.terms || null,
     plainSummary: c.summary || null,
@@ -99,10 +106,16 @@ export function toServer(c: Contract): ContractPayload {
 export function createContractsApi(client: HttpClient) {
   return {
     list: () => client.request<ServerContract[]>("/contracts"),
+    attention: () => client.request<ServerContract[]>("/contracts/attention"),
     get: (id: string) =>
       client.request<ServerContract>(`/contracts/${encodeURIComponent(id)}`),
     create: (body: ContractPayload) =>
       client.request<ServerContract>("/contracts", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    createDraft: (body: ContractPayload) =>
+      client.request<ServerContract>("/contracts/drafts", {
         method: "POST",
         body: JSON.stringify(body),
       }),

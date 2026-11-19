@@ -8,11 +8,13 @@ import { useApp } from "../state/AppStore";
 import { useAuth } from "../auth/AuthContext";
 import { createContractsApi } from "../services/contractsApi";
 import { createDocumentsApi } from "../services/documentsApi";
+import { ApiError } from "../services/http";
 export default function Upload() {
   const [file, setFile] = useState<DocumentPicker.DocumentPickerAsset | null>(
     null,
   );
   const [error, setError] = useState("");
+  const [duplicate, setDuplicate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState("");
   const { refresh } = useApp();
@@ -24,13 +26,14 @@ export default function Upload() {
   const analyze = async () => {
     if (!file || busy) return;
     setBusy(true);
+    setDuplicate(false);
     setError("");
     const contracts = createContractsApi(client);
     const documents = createDocumentsApi(client);
     try {
       if (!pending.current.contractId) {
         setStep("계약을 준비하고 있어요.");
-        const c = await contracts.create({
+        const c = await contracts.createDraft({
           title: file.name,
           category: "UNCLASSIFIED",
           providerName: null,
@@ -54,12 +57,16 @@ export default function Upload() {
       setStep("AI가 계약서를 분석하고 있어요.");
       await documents.analyze(id, pending.current.documentId);
       await refresh();
-      router.replace(`/contract/${id}`);
+      router.replace({ pathname: "/contract/[id]", params: { id, registration: "true" } });
     } catch (e) {
-      setError(
+      if (e instanceof ApiError && e.code === "DUPLICATE_CONTRACT_DOCUMENT") {
+        setDuplicate(true);
+        setError("이미 등록된 계약 문서예요. 내 계약에서 기존 계약을 확인해 주세요.");
+        pending.current = {};
+      } else setError(
         (e instanceof Error ? e.message : "분석하지 못했어요.") +
           (pending.current.contractId
-            ? " 생성한 계약은 내 계약에 남아 있어요. 다시 누르면 같은 계약으로 이어서 시도해요."
+            ? " 아직 저장되지 않았어요. 다시 누르면 같은 파일로 분석을 재시도해요."
             : ""),
       );
     } finally {
@@ -82,11 +89,12 @@ export default function Upload() {
         }
         if (pending.current.contractId) {
           setError(
-            "이미 업로드 작업을 시작한 계약이 있어요. 내 계약에서 확인해 주세요.",
+            "이미 분석을 시작한 파일이 있어요. 다시 분석하거나, 나갔다가 새로 등록해 주세요.",
           );
           return;
         }
         setFile(selected);
+        setDuplicate(false);
         setError("");
       }
     } catch {
@@ -100,7 +108,7 @@ export default function Upload() {
       footer={
         <Button
           label={"업로드하고 AI 분석하기"}
-          disabled={busy || !file}
+          disabled={busy || !file || duplicate}
           icon="doc"
           onPress={() => void analyze()}
         />
@@ -119,7 +127,7 @@ export default function Upload() {
       </Info>
       <View style={{ marginTop: 20 }}>
         <Info title={"원본 계약서를 함께 저장해요"}>
-          {"분석에 실패해도 내 계약에서 생성한 계약을 확인할 수 있어요."}
+          {"분석 내용을 확인하고 저장하기를 눌러야 내 계약에 등록돼요."}
         </Info>
       </View>
       <Text
@@ -185,6 +193,9 @@ export default function Upload() {
         </Text>
       )}
 
+      {duplicate && (
+        <Button secondary label="내 계약에서 확인하기" onPress={() => router.replace("/contracts")} />
+      )}
       <Pressable
         accessibilityRole="button"
         disabled={busy}
