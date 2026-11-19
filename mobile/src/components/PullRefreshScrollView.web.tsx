@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import type { ScrollViewInstance } from "react-native";
 import type { PullRefreshProps } from "./PullRefreshScrollView";
 
 // React Native Web's RefreshControl does not implement the pull gesture.
 export function PullRefreshScrollView({ onRefresh, children, ...props }: PullRefreshProps) {
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const callback = useRef(onRefresh);
   callback.current = onRefresh;
   const running = useRef(false);
