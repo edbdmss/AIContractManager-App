@@ -14,7 +14,19 @@ import {
   styles,
 } from "../../components/ui";
 import { Icon } from "../../components/Icon";
-import { localDate, money, dateText } from "../../model";
+import { localDate, money, dateText, Contract } from "../../model";
+function attentionEvent(contract: Contract) {
+  // Match the API's Asia/Seoul calendar day, regardless of device timezone.
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const through = new Date(Date.parse(today + "T00:00:00Z") + 7 * 86400000).toISOString().slice(0, 10);
+  return [
+    { date: contract.endDate, label: "계약 만료" },
+    { date: contract.serverNextPaymentDate, label: contract.category === "구독" ? "구독 결제" : "계약 갱신" },
+    { date: contract.serverCancellationDeadline, label: "해지 신청 마감" },
+  ].filter((event) => event.date && event.date >= today && event.date <= through)
+    .sort((a, b) => a.date!.localeCompare(b.date!))[0];
+}
+
 export default function Home() {
   const {
     data,
@@ -161,7 +173,10 @@ export default function Home() {
       <Section title="확인이 필요한 계약" />
       {!attentionLoaded || attentionError ? (
         <RequestState loading={!attentionLoaded} error={attentionError} onRetry={() => void refresh()} />
-      ) : attentionContracts.length ? attentionContracts.map((contract) => (
+      ) : attentionContracts.length ? attentionContracts.map((contract) => {
+        const event = attentionEvent(contract);
+        if (!event) return null;
+        return (
         <Pressable
           key={contract.id}
           accessibilityRole="button"
@@ -178,15 +193,15 @@ export default function Home() {
           <Icon name="bell" color="#996b4d" size={19} />
           <View style={{ flex: 1, gap: 5 }}>
             <Text style={{ fontSize: 12, color: "#996b4d", fontWeight: "700" }}>
-              {contract.title} · 계약 만료 예정
+              {contract.title} · {event.label} 예정
             </Text>
             <Text style={{ fontSize: 11, color: "#996b4d" }}>
-              {dateText(contract.endDate)}에 만료돼요. 계약 내용을 확인해 주세요.
+              {dateText(event.date!)} {event.label} 예정이에요. 계약 내용을 확인해 주세요.
             </Text>
           </View>
         </Pressable>
-      )) : (
-        <Text style={styles.muted}>7일 이내 만료되는 계약이 없어요.</Text>
+      ); }) : (
+        <Text style={styles.muted}>7일 이내 확인할 계약 일정이 없어요.</Text>
       )}
       <Section title="계약 리포트" right={`${now.getMonth() + 1}월`} />
       {dashboard && dashboard.month === monthKey ? (
