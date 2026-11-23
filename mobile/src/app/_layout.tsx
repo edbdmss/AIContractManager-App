@@ -25,7 +25,7 @@ function skipStartup() {
 function StartupGate({ children }: { children: React.ReactNode }) {
   const { ready } = useAuth();
   const [minimumElapsed, setMinimumElapsed] = useState(skipStartup);
-  const [completed, setCompleted] = useState(skipStartup);
+  const completed = minimumElapsed && ready;
   useEffect(() => {
     if (completed) return;
     const timer = setTimeout(() => setMinimumElapsed(true), 800);
@@ -34,7 +34,6 @@ function StartupGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (minimumElapsed && ready) {
       startupCompleted = true;
-      setCompleted(true);
       hideNativeSplash();
     }
   }, [minimumElapsed, ready]);

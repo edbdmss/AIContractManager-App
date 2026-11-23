@@ -7,7 +7,9 @@ import type { PullRefreshProps } from "./PullRefreshScrollView";
 export function PullRefreshScrollView({ onRefresh, children, ...props }: PullRefreshProps) {
   const scroll = useRef<ScrollViewInstance>(null);
   const callback = useRef(onRefresh);
-  callback.current = onRefresh;
+  useEffect(() => {
+    callback.current = onRefresh;
+  }, [onRefresh]);
   const running = useRef(false);
   const [refreshing, setRefreshing] = useState(false);
   const [distance, setDistance] = useState(0);
