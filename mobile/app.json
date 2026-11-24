@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "계약의 모든것",
-    "slug": "contract-manager-mobile",
+    "slug": "gyeombi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +16,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.aicontractmanager.app"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -37,6 +38,17 @@
       ]
     ],
     "scheme": "contractmanager",
-    "backgroundColor": "#f5f6f2"
+    "backgroundColor": "#f5f6f2",
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "0d0c4563-225a-4459-8439-24929bd3b94a"
+      }
+    },
+    "owner": "bee113s-team"
   }
 }
