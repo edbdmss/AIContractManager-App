@@ -10,8 +10,15 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { createHttpClient, Session, errorText } from "../services/http";
 import { readSession, writeSession } from "./storage";
+const configuredApiUrl =
+  Platform.OS === "web"
+    ? process.env.EXPO_PUBLIC_API_URL
+    : Platform.OS === "android"
+      ? process.env.EXPO_PUBLIC_ANDROID_API_URL
+      : process.env.EXPO_PUBLIC_API_BASE_URL;
+
 export const API_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  configuredApiUrl ||
   (__DEV__
     ? Platform.OS === "android"
       ? "http://10.0.2.2:8080/api/aicontract"

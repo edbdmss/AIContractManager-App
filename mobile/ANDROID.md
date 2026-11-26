@@ -183,7 +183,7 @@ Android 개발용 실행은 환경변수가 없으면 첫 번째 주소를 기�
 사용자별 설정은 `mobile/.env.local`에 작성합니다.
 
 ```dotenv
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080/api/aicontract
+EXPO_PUBLIC_ANDROID_API_URL=http://10.0.2.2:8080/api/aicontract
 # 백엔드 담당자와 준비한 실제 HTTPS 복귀 주소로 교체 후 사용
 # EXPO_PUBLIC_NATIVE_OAUTH_REDIRECT_URI=https://YOUR_WEB_HOST/oauth/native-callback
 ```
